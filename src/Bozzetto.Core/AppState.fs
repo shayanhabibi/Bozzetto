@@ -696,7 +696,7 @@ let private evalAsChoice (session: FsiSession.IFsiSession) (code: string) (ct: C
 let createFsiSession (kind: SessionKinds.FsiSessionKind) (logger: ILogger) (outStream: TextWriter) (useAsp: bool) (originalSln: Solution) (sln: Solution) (autoOpenNamespaces: bool) (ct: CancellationToken) (onProgress: (int * int * string) -> unit) =
   async {
     match kind with
-    | SessionKinds.Isolated -> invalidOp ExternalFSharpService.message
+    | SessionKinds.Isolated -> invalidOp SessionKinds.isolatedNotRestored
     | SessionKinds.InProcess -> ()
     let warmupStartedAt = System.DateTimeOffset.UtcNow
     let sw = System.Diagnostics.Stopwatch.StartNew()
@@ -706,8 +706,8 @@ let createFsiSession (kind: SessionKinds.FsiSessionKind) (logger: ILogger) (outS
 
     logger.LogInfo (sprintf "  Creating FSI session (%A) with %d args..." kind (Array.length args))
     let fsiErrorWriter = new System.IO.StringWriter()
-    // Retained in-process component-test execution; production isolated
-    // sessions have already been refused before any setup above.
+    // In-process FSI: in production this process is the session's worker.
+    // Isolated requests were refused before any setup above.
     let! fsiSession =
       match kind with
       | SessionKinds.InProcess ->
@@ -732,7 +732,7 @@ let createFsiSession (kind: SessionKinds.FsiSessionKind) (logger: ILogger) (outS
           | false -> ()
           return (new FsiSession.InProcessFsiSession(raw, SessionAgent.agentInitOf sln) :> FsiSession.IFsiSession)
         }
-      | SessionKinds.Isolated -> async { return invalidOp ExternalFSharpService.message }
+      | SessionKinds.Isolated -> async { return invalidOp SessionKinds.isolatedNotRestored }
     logger.LogInfo (sprintf "  FSI session created in %dms, loading startup files..." sw.ElapsedMilliseconds)
     onProgress(1, 4, "FSI session created")
 
@@ -1017,7 +1017,7 @@ let observeEvalLatency (observe: float -> unit) (elapsedMs: float) : unit =
 
 let mkAppStateActor (sessionKind: SessionKinds.FsiSessionKind) (logger: ILogger) (initCustomData: Map<string, obj>) outStream useAsp (originalSln: Solution) (shadowDir: string option) (autoOpenNamespaces: bool) (workflow: WorkflowTypes.SessionWorkflow) (onEvent: Events.BozzettoEvent -> unit) (pipelineBuildFn: PipelineBuildFn) (sln: Solution) =
   match sessionKind with
-  | SessionKinds.Isolated -> invalidOp ExternalFSharpService.message
+  | SessionKinds.Isolated -> invalidOp SessionKinds.isolatedNotRestored
   | SessionKinds.InProcess -> ()
   let diagnosticsChangedEvent = Event<Features.DiagnosticsStore.T>()
   let emit evt = try onEvent evt with ex -> logger.LogWarning (sprintf "Event emission failed: %s" ex.Message)

@@ -26,9 +26,9 @@ and ClassifiedProject = {
   PackageRefs: string list
 }
 
-/// Retained manual .fsproj parsing utility for component-test fixtures.
-/// Named F# session construction is refused before this utility can run;
-/// it does not replace the retired project evaluator.
+/// Manual .fsproj parsing: the fallback when MSBuild evaluation is unavailable
+/// (see `Workspace.loadSolution`). It yields source files and bin references,
+/// not full MSBuild-derived project metadata.
 module ManualProjectParse =
 
   let private xname (local: string) = XName.Get(local)
@@ -230,15 +230,15 @@ module ManualProjectParse =
           UnresolvedReferences = None
           Stamp = None } ]
 
-/// Inert project facts injected into retained component tests. This is not a
-/// project evaluator: named F# project/session construction is retired.
+/// Bozzetto's facts about one evaluated project. `Workspace.toMetadata` is the
+/// only translation from the evaluator's own type; tests construct it directly.
 type ProjectMetadata = {
   ProjectFileName: string
   TargetPath: string
   TargetFramework: string
   OtherOptions: string list
   ReferencedProjects: string list
-  /// Package identity and assembly path are distinct injected facts.
+  /// Package identity and assembly path are distinct facts.
   PackageReferences: (string * string) list
   AllProperties: Map<string, Set<string>>
 }
@@ -262,8 +262,8 @@ let emptySolution = {
 }
 
 /// If a build output does not exist, probe the same path under the sibling
-/// configuration (Debug ↔ Release) and return it when it exists. The retired loader
-/// evaluated projects with MSBuild's default Configuration (Debug), so after a
+/// configuration (Debug ↔ Release) and return it when it exists. The loader
+/// evaluates projects with MSBuild's default Configuration (Debug), so after a
 /// Release-only build every Debug path it reports is missing — the project's
 /// own bin/<Config>/<TFM>/x.dll AND the referenced projects' reference
 /// assemblies at obj/<Config>/<TFM>/ref/x.dll. The nearest Debug/Release
@@ -300,7 +300,7 @@ let resolveSiblingConfigOutput (dllPath: string) : string option =
   with _ -> None
 
 /// The FRESHEST existing build output across the Debug/Release sibling
-/// configurations. Historical regression: the retired loader evaluated projects
+/// configurations. Historical regression: the loader evaluates projects
 /// with MSBuild's default Configuration (Debug), so it reports a bin/Debug
 /// TargetPath even when the user's real, current build is Release — and if a
 /// STALE Debug output happens to exist, `resolveSiblingConfigOutput` (which
@@ -327,7 +327,7 @@ let resolveFreshestConfigOutput (dllPath: string) : string option =
 
 /// Which target framework each referenced project has to be loaded at.
 ///
-/// Historical regression: the retired loader evaluated every project independently; for a project with
+/// Historical regression: the loader evaluates every project independently; for a project with
 /// `<TargetFrameworks>net9.0;net10.0</TargetFrameworks>` it just takes the
 /// FIRST one. It never asks the project that references it. So a net10.0 test
 /// project referencing a multi-targeted library got the library's net9.0
@@ -447,15 +447,15 @@ module ReferenceFrameworks =
         go projects' (Set.union attempted pendingSet)
     go projects Set.empty
 
-/// Retained component-test progress fold over injected loading events.
-/// It performs no project evaluation and carries no loader dependency.
+/// Per-project progress while `Workspace.loadSolution` evaluates projects: a
+/// pure fold over the loader's notifications, so it carries no loader dependency.
 module ProjectLoadProgress =
-  /// The injected running project count; it only grows so step <= total.
+  /// The running project count; it only grows so step <= total.
   type State = { Completed: int; KnownTotal: int }
 
   let initial = { Completed = 0; KnownTotal = 0 }
 
-  /// An injected project-evaluation event used by retained component tests.
+  /// One project-evaluation event, reduced from the loader's notification.
   type Update =
     | Loading of projectFile: string
     | Loaded of projectFile: string * knownProjectCount: int
@@ -482,7 +482,8 @@ module ProjectLoadProgress =
       { Completed = completed; KnownTotal = total },
       Some(completed, total, sprintf "Failed to load %s" (Path.GetFileName file))
 
-/// Shared classification vocabulary for injected metadata and fixture XML.
+/// Shared by the evaluated-metadata path and the manual-parse XML path, so the
+/// two can never disagree on what counts as a test package.
 let private isTestPackageName = TestProviderCatalog.isTestPackageName
 
 /// Detect if a project is a test project via MSBuild property or package references.
@@ -537,7 +538,8 @@ let classifyProject (proj: ProjectMetadata) : ClassifiedProject =
 let classifyProjects (projects: ProjectMetadata list) : ClassifiedProject list =
   projects |> List.map classifyProject
 
-/// Classification properties read from component-test fixture XML.
+/// Classification properties read straight from an .fsproj's XML, for the
+/// manual-parse fallback, which has no evaluated `AllProperties`.
 type private FallbackProjectProps = {
   OutputType: string option
   IsTestProject: bool option
@@ -565,7 +567,7 @@ let private readFallbackProjectProps (projPath: string) : FallbackProjectProps =
         match propValue prop with
         | Some v -> String.Equals(v, "true", StringComparison.OrdinalIgnoreCase)
         | None -> false)
-    // Fixture SDK/FrameworkReference markers come from the same
+    // SDK/FrameworkReference markers come from the same
     // single reader — so the fallback path cannot classify a Minimal API
     // project differently from the normal one.
     let projectFileMarkers = WorkflowTypes.ProjectFileMarkers.read projPath
@@ -575,7 +577,8 @@ let private readFallbackProjectProps (projPath: string) : FallbackProjectProps =
   with _ ->
     { OutputType = None; IsTestProject = None; PackageRefs = [] }
 
-/// Classify retained FCS fixture options using the fixture XML properties.
+/// Classify a manual-parse fallback project from its .fsproj XML. Only an
+/// explicit `OutputType = Exe` produces Executable; anything else is Library.
 let classifyFallbackProject (fp: FSharpProjectOptions) : ClassifiedProject =
   let props = readFallbackProjectProps fp.ProjectFileName
   let role =
@@ -590,8 +593,8 @@ let classifyFallbackProject (fp: FSharpProjectOptions) : ClassifiedProject =
     Role = role
     PackageRefs = props.PackageRefs }
 
-/// Classify injected metadata and retained FCS fixture options.
-/// The owning seam deduplicates by path before reading fixture properties.
+/// Classify every loaded project, from evaluated metadata (`Projects`) and the
+/// manual-parse fallback (`FsProjects`), deduplicated by path.
 let classifiedProjectsOf (sln: Solution) : ClassifiedProject list =
   let normal = classifyProjects sln.Projects
   let normalPaths = normal |> List.map (fun cp -> cp.Path) |> Set.ofList
@@ -613,7 +616,8 @@ let private fallbackProjectTarget (references: DllName list) (fp: FSharpProjectO
   |> List.tryFind (fun dll -> String.Equals(Path.GetFileName dll, expectedName, StringComparison.OrdinalIgnoreCase))
   |> Option.map (fun target -> fp.ProjectFileName, target)
 
-/// Assembly paths from injected metadata and retained FCS fixture options.
+/// Each loaded project with the assembly path the session runs from, from
+/// evaluated metadata and the manual-parse fallback.
 let projectTargetsOf (sln: Solution) : (string * string) list =
   let normal = sln.Projects |> List.map (fun po -> po.ProjectFileName, po.TargetPath)
   let normalPaths = normal |> List.map fst |> Set.ofList
@@ -626,7 +630,7 @@ let projectTargetsOf (sln: Solution) : (string * string) list =
 /// Orders projects so every project appears AFTER all of its own project
 /// references (a dependency-first topological sort by `ReferencedProjects`).
 ///
-/// Historical regression: the retired loader returned the explicitly-requested project(s)
+/// Historical regression: the loader returns the explicitly-requested project(s)
 /// first, followed by their transitive references in discovery order — NOT
 /// dependency order. Feeding FSI `-r:` flags in that order (the dependent
 /// project's assembly referenced BEFORE the assembly it depends on) makes FCS
@@ -705,7 +709,7 @@ let describeMissingDlls (missing: MissingDll list) : string =
     "Not all DLLs are found (%d missing). These are the exact paths Bozzetto checked:\n%s\n\
      If those files don't exist, %s. If the DLL is sitting in some other folder, Bozzetto looked in the wrong place, \
      and that's a Bozzetto bug worth reporting with this message.\n\
-     Named F# project sessions are retired. Validate these component-test outputs with dotnet build."
+     Build the project, then hard_reset_fsi_session with rebuild=true or create the session again."
     missing.Length
     (missing |> List.map describe |> String.concat "\n")
     notBuiltHint
@@ -731,7 +735,7 @@ let solutionToFsiArgs (logger: ILogger) (_useAsp: bool) sln =
   // exist — after a Release-only build they point into obj/Debug and would
   // otherwise kill FSI at startup with a bare StopProcessingExn.
   //
-  // Retained fixture compiler options can carry
+  // Evaluated compiler options can carry
   // each project's OWN "-r:" flags as MSBuild originally emitted them —
   // including project-to-project references resolved to their COMPILE-TIME
   // "obj/<Config>/<TFM>/ref/X.dll" reference assemblies, which are NEVER
@@ -805,3 +809,205 @@ let solutionToFsiArgs (logger: ILogger) (_useAsp: bool) sln =
     // such as ASP.NET Core, and referenced projects) — resolved above.
     yield! compilerRefs |> Seq.map (sprintf "-r:%s")
   |]
+
+/// MSBuild project evaluation for F# sessions, through Ionide.ProjInfo, run
+/// inside the session's worker process. Ionide's types stay inside this
+/// module: every evaluated project leaves it as `ProjectMetadata`.
+module Workspace =
+  open System.Diagnostics
+  open Ionide.ProjInfo
+  open Ionide.ProjInfo.Types
+
+  /// The leading major of a `dotnet --version` string ("10.0.401" -> 10).
+  let sdkMajorOf (version: string) : int option =
+    match version.Split '.' with
+    | [||] -> None
+    | parts ->
+      match Int32.TryParse parts.[0] with
+      | true, major -> Some major
+      | false, _ -> None
+
+  /// `Init.init` installs a process-wide assembly resolver for the selected
+  /// SDK and never removes it. An SDK newer than this process's runtime makes
+  /// MSBuild's load fail AND leaves that resolver attached, corrupting every
+  /// later resolution in the worker. Never attempt it; parse the fsproj.
+  let shouldSkipInProcessLoad (hostMajor: int) (ambientSdkMajor: int) : bool = ambientSdkMajor > hostMajor
+
+  /// The SDK `dotnet --version` selects in `workingDir` (honouring global.json),
+  /// bounded so the probe can never hang a warm-up.
+  let private ambientSdkVersion (workingDir: string) : string option =
+    try
+      let psi = ProcessStartInfo("dotnet", "--version")
+      psi.WorkingDirectory <- workingDir
+      psi.RedirectStandardOutput <- true
+      psi.RedirectStandardError <- true
+      psi.UseShellExecute <- false
+      psi.CreateNoWindow <- true
+      use proc = Process.Start psi
+      let stdout' = proc.StandardOutput.ReadToEndAsync()
+      match proc.WaitForExit 15_000 with
+      | false ->
+        (try proc.Kill true with _ -> ())
+        None
+      | true when proc.ExitCode = 0 -> Some(stdout'.Result.Trim())
+      | true -> None
+    with _ -> None
+
+  let private systemRuntimeBindFailure = System.Text.RegularExpressions.Regex(@"System\.Runtime, Version=(\d+)\.")
+
+  /// Explain a loader failure that is exactly the newer-SDK bind failure
+  /// `shouldSkipInProcessLoad` exists to prevent (defense in depth for when
+  /// the ambient SDK probe itself failed).
+  let classifyProjectLoaderFailure (hostMajor: int) (exceptionMessage: string) : string option =
+    let m = systemRuntimeBindFailure.Match exceptionMessage
+    match m.Success with
+    | false -> None
+    | true ->
+      match Int32.TryParse m.Groups.[1].Value with
+      | true, sdkMajor when sdkMajor > hostMajor ->
+        Some(
+          sprintf
+            "the project's .NET SDK is %d.x, newer than the worker's runtime (.NET %d), so its MSBuild cannot load in this process; falling back to a manual fsproj parse (source files, not full MSBuild metadata)."
+            sdkMajor
+            hostMajor)
+      | _ -> None
+
+  let private ofWorkspaceProjectState (state: WorkspaceProjectState) : ProjectLoadProgress.Update =
+    match state with
+    | WorkspaceProjectState.Loading projFile -> ProjectLoadProgress.Loading projFile
+    | WorkspaceProjectState.Loaded(loadedProject, knownProjects, _fromCache) ->
+      ProjectLoadProgress.Loaded(loadedProject.ProjectFileName, List.length knownProjects)
+    | WorkspaceProjectState.Failed(projFile, _errors) -> ProjectLoadProgress.Failed projFile
+
+  let private referenceNode (po: ProjectOptions) : ReferenceFrameworks.Node =
+    { ProjectFile = Path.GetFullPath po.ProjectFileName
+      EvaluatedAt = po.TargetFramework
+      ReferencesAt = ReferenceFrameworks.referencesAtOf po.ProjectFileName po.AllItems }
+
+  /// The one translation from Ionide's evaluation to Bozzetto's project facts.
+  let toMetadata (po: ProjectOptions) : ProjectMetadata =
+    { ProjectFileName = po.ProjectFileName
+      TargetPath = po.TargetPath
+      TargetFramework = po.TargetFramework
+      OtherOptions = po.OtherOptions
+      ReferencedProjects = po.ReferencedProjects |> List.map _.ProjectFileName
+      PackageReferences = po.PackageReferences |> List.map (fun pr -> pr.Name, pr.FullPath)
+      AllProperties = po.AllProperties }
+
+  /// When MSBuild evaluation is unavailable or returns nothing: parse the
+  /// fsproj XML so the session still gets its source files, with each
+  /// project's bin directory leading the probe path so its own dependency
+  /// versions bind before the worker's copies.
+  let private manualSolution (logger: ILogger) (projects: string list) (onProgress: int -> int -> string -> unit) : Solution =
+    let total = List.length projects
+    let manual =
+      projects
+      |> List.indexed
+      |> List.collect (fun (i, projPath) ->
+        onProgress (i + 1) total (sprintf "Parsing %s (manual)" (Path.GetFileName projPath))
+        ManualProjectParse.parseFsproj logger projPath)
+    let binLibPaths =
+      projects
+      |> List.choose (fun projPath ->
+        match ManualProjectParse.outputBinDir projPath with
+        | None -> None
+        | Some binDir ->
+          Directory.EnumerateDirectories binDir
+          |> Seq.sortByDescending Directory.GetLastWriteTimeUtc
+          |> Seq.tryHead)
+      |> List.filter Directory.Exists
+    { FsProjects = manual
+      Projects = []
+      StartupFiles = []
+      References = ManualProjectParse.collectBinReferences logger projects
+      LibPaths = binLibPaths
+      // FSI defaults to an older language version than the SDK; without
+      // ProjectOptions there is no --langversion to carry, so match the build.
+      OtherArgs = [ "--langversion:preview" ] }
+
+  /// Evaluate the session's explicit targets. A bare target set yields an
+  /// empty solution; the working directory is never searched for projects.
+  let loadSolution (logger: ILogger) (config: Args.ProjectLoadConfig) (onProgress: int -> int -> string -> unit) : Solution =
+    let solutions = config.Solutions |> List.map Path.GetFullPath
+    let projects = config.Projects |> List.map Path.GetFullPath
+    match solutions, projects with
+    | [], [] ->
+      if not config.IsBare then logger.LogWarning "No project or solution was named for this session"
+      emptySolution
+    | _ ->
+      for s in solutions do logger.LogInfo (sprintf "Found solution: %s" (Path.GetFileName s))
+      for p in projects do logger.LogInfo (sprintf "Found project: %s" (Path.GetFileName p))
+      let hostMajor = Environment.Version.Major
+      let ambientMajor = ambientSdkVersion config.WorkingDir |> Option.bind sdkMajorOf
+      let loaded, toolsPath =
+        match ambientMajor with
+        | Some sdkMajor when shouldSkipInProcessLoad hostMajor sdkMajor ->
+          logger.LogWarning (
+            sprintf
+              "Skipping in-process MSBuild project load: the project's .NET SDK is %d.x, newer than the worker's runtime (.NET %d). Using a manual fsproj parse."
+              sdkMajor
+              hostMajor)
+          [], None
+        | _ ->
+          logger.LogInfo "Initializing build tooling..."
+          let toolsPath = Init.init (DirectoryInfo config.WorkingDir) None
+          let loader: IWorkspaceLoader = WorkspaceLoader.Create(toolsPath, [])
+          // Ionide's own per-project notifications drive real progress.
+          let mutable progress = ProjectLoadProgress.initial
+          loader.Notifications.Add(fun notification ->
+            let next, reported = ProjectLoadProgress.step progress (ofWorkspaceProjectState notification)
+            progress <- next
+            reported |> Option.iter (fun (step, total, message) -> onProgress step total message))
+          logger.LogInfo "Loading solution and project references..."
+          let loaded =
+            try
+              let fromSolutions =
+                solutions
+                |> List.collect (fun s ->
+                  logger.LogInfo (sprintf "  Loading %s..." (Path.GetFileName s))
+                  loader.LoadSln s |> Seq.toList)
+              fromSolutions @ (loader.LoadProjects projects |> Seq.toList)
+            with ex ->
+              match classifyProjectLoaderFailure hostMajor ex.Message with
+              | Some explanation -> logger.LogWarning (sprintf "  Project loader failed: %s" explanation)
+              | None -> logger.LogWarning (sprintf "  Project loader failed (%s); falling back to a manual fsproj parse" ex.Message)
+              []
+          loaded, Some toolsPath
+      logger.LogInfo (sprintf "  Loaded %d project(s)." (List.length loaded))
+      match loaded, toolsPath with
+      | [], _ when List.isEmpty projects ->
+        logger.LogWarning "  The solution loaded no projects"
+        emptySolution
+      | [], _
+      | _, None ->
+        // Ionide can return nothing without throwing when evaluation fails.
+        logger.LogWarning "  Loader returned 0 projects; parsing the fsproj files"
+        manualSolution logger projects onProgress
+      | loaded, Some toolsPath ->
+        // Ionide evaluates each multi-targeted reference at its first TFM;
+        // re-evaluate it at the TFM its consumer actually builds it at.
+        let reloadAt (tfm: string) (paths: string list) : ProjectOptions list =
+          logger.LogInfo (sprintf "  Reloading %s at %s (the TFM the referencing project builds it at)" (paths |> List.map Path.GetFileName |> String.concat ", ") tfm)
+          try (WorkspaceLoader.Create(toolsPath, [ ("TargetFramework", tfm) ])).LoadProjects paths |> Seq.toList
+          with ex ->
+            logger.LogWarning (sprintf "  Reloading at %s failed: %s" tfm ex.Message)
+            []
+        // MSBuild defaults to Debug output; run from whichever configuration
+        // was built most recently so a stale Debug build never shadows a fresh
+        // Release one.
+        let settled =
+          ReferenceFrameworks.settle referenceNode reloadAt loaded
+          |> List.map (fun po ->
+            match resolveFreshestConfigOutput po.TargetPath with
+            | Some fresh -> { po with TargetPath = fresh }
+            | None -> po)
+        { FsProjects = FCS.mapManyOptions settled |> List.ofSeq
+          Projects = settled |> List.map toMetadata
+          StartupFiles = []
+          References = []
+          LibPaths = []
+          OtherArgs = [] }
+
+/// Evaluate a session's explicit project or solution targets (see Workspace).
+let loadSolution (logger: ILogger) (config: Args.ProjectLoadConfig) (onProgress: int -> int -> string -> unit) : Solution =
+  Workspace.loadSolution logger config onProgress

@@ -304,38 +304,254 @@ module SessionManager =
     | false, false -> sprintf "%s reported ready without a valid proxy" transportKind
     | false, true -> sprintf "%s reported ready with a valid transport" transportKind
 
-  /// Embedded production FSI hosting is retired from the daemon. Keep the
-  /// runtime injection seam for component tests, but never spawn a local host.
-  let startWorkerProcess
-    (_sessionId: SessionId)
-    (_targets: SessionProjectTarget list)
-    (_workingDir: string)
-    (_autoOpenNamespaces: bool)
-    (_workflow: WorkflowTypes.SessionWorkflow)
-    (_onExited: int -> int -> unit)
-    : Result<SpawnedWorker, BozzettoError> =
-    Error (BozzettoError.WorkerSpawnFailed ExternalFSharpService.message)
+  /// The worker's stdout line that names its socket once it is serving.
+  [<Literal>]
+  let WorkerSocketPrefix = "WORKER_SOCKET="
 
-  /// A local F# worker cannot become a production transport. This defensive
-  /// boundary also retires an injected process instead of interpreting stdout
-  /// as a private HTTP endpoint. Tests can inject their own readiness callback.
-  let private refuseLocalWorker
+  /// Start a worker OS process (Bozzetto.Host). Returns immediately with the
+  /// Process; `awaitWorkerPort` reads its readiness line.
+  let startWorkerProcess
+    (sessionId: SessionId)
+    (targets: SessionProjectTarget list)
+    (workingDir: string)
+    (autoOpenNamespaces: bool)
+    (workflow: WorkflowTypes.SessionWorkflow)
+    (onExited: int -> int -> unit)
+    : Result<SpawnedWorker, BozzettoError> =
+    let args, envVars = Args.buildWorkerSpawnConfig (SessionId.value sessionId) targets false autoOpenNamespaces workflow
+    let projects = SessionProjectTarget.paths targets
+    // The session's F# code runs inside the worker, so the worker is the
+    // process that must run on the runtime the projects need: roll it
+    // forward, or refuse with what to install rather than fail warm-up with
+    // a bare "assembly not referenced".
+    let runtimeChoice =
+      match projects with
+      | [] -> RuntimeCompat.HostFits
+      | projects -> RuntimeSelection.resolveRuntimeChoice projects
+    match runtimeChoice with
+    | RuntimeCompat.RuntimeMissing _ -> Error (BozzettoError.WorkerSpawnFailed (RuntimeCompat.describe runtimeChoice))
+    | _ ->
+    (match runtimeChoice with
+     | RuntimeCompat.RollForward _
+     | RuntimeCompat.Unknown _ -> Log.info "[SessionManager] session %s: %s" (SessionId.value sessionId) (RuntimeCompat.describe runtimeChoice)
+     | _ -> ())
+    let dotnetMuxer =
+      match Environment.GetEnvironmentVariable "DOTNET_HOST_PATH" with
+      | null | "" ->
+        Args.muxerFromRuntimeDir
+          (System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory())
+          (OperatingSystem.IsWindows())
+      | hostPath -> hostPath
+    // Dogfooding Bozzetto on Bozzetto: when the session's own projects ship a
+    // Bozzetto.Core matching the daemon's version, the worker launches from a
+    // private host copy carrying that build (see HostCoreAdoption). A genuine
+    // version mismatch is refused rather than spawned.
+    let hostVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version
+    match HostCoreAdoption.resolveLaunchRoot System.AppContext.BaseDirectory (SessionId.value sessionId) projects hostVersion with
+    | Error reason -> Error (BozzettoError.WorkerSpawnFailed reason)
+    | Ok launchPlan ->
+    let launchRoot = launchPlan.LaunchRoot
+    let hostCleanup = launchPlan.Cleanup
+    hostCleanup
+    |> Option.iter (fun _ ->
+      Log.info "[SessionManager] session %s: adopted a private Bozzetto.Core build into %s" (SessionId.value sessionId) launchRoot)
+    match Args.resolveHostLaunch launchRoot (OperatingSystem.IsWindows()) dotnetMuxer File.Exists with
+    | Error reason ->
+      hostCleanup |> Option.iter (fun cleanup -> try cleanup () with _ -> ())
+      Error (BozzettoError.WorkerSpawnFailed reason)
+    | Ok launch ->
+
+    let psi = ProcessStartInfo()
+    match launch with
+    | Args.HostLaunch.NativeExecutable exe ->
+      psi.FileName <- exe
+      psi.Arguments <- args
+    | Args.HostLaunch.ViaDotnetMuxer (dotnet, hostDll) ->
+      psi.FileName <- dotnet
+      psi.Arguments <- sprintf "\"%s\" %s" hostDll args
+    psi.WorkingDirectory <- workingDir
+    psi.UseShellExecute <- false
+    psi.CreateNoWindow <- true
+    // stdout carries the WARMUP_PROGRESS= and WORKER_SOCKET= lifecycle lines;
+    // stderr carries diagnostics. Requests and replies use the socket.
+    psi.RedirectStandardOutput <- true
+    psi.RedirectStandardError <- true
+    // Session configuration travels as environment, and MSBuild-resolution
+    // variables the daemon picked up are stripped (ProcessEnvironment).
+    Bozzetto.ProcessEnvironment.applyToWithForwarding psi (envVars @ RuntimeCompat.rollForwardEnv runtimeChoice)
+
+    let proc = new Process()
+    proc.StartInfo <- psi
+    proc.EnableRaisingEvents <- true
+
+    match proc.Start() with
+    | false ->
+      hostCleanup |> Option.iter (fun cleanup -> try cleanup () with _ -> ())
+      Error (BozzettoError.WorkerSpawnFailed "Failed to start worker process")
+    | true ->
+      let workerPid = proc.Id
+      // Mark the private launch root's owner before anything else touches it,
+      // so a sweep from any later Bozzetto process can prove it orphaned.
+      hostCleanup |> Option.iter (fun _ -> HostCoreAdoption.markAdoptedRootOwner launchRoot workerPid)
+      proc.Exited.Add(fun _ ->
+        try
+          onExited workerPid proc.ExitCode
+        with _ -> ()
+        hostCleanup |> Option.iter (fun cleanup -> try cleanup () with _ -> ()))
+      Ok { Process = proc; AdoptedCore = launchPlan.AdoptedCore }
+
+  /// Run a blocking action on a dedicated background thread, never a
+  /// thread-pool thread. A worker's stdout/stderr readers live as long as the
+  /// session; on pool threads they starved the pool under concurrent warm-ups
+  /// (2026-09-22), delaying the very watchdogs meant to catch a stuck session.
+  let private runOnDedicatedThread (name: string) (action: unit -> unit) : System.Threading.Tasks.Task =
+    let tcs = System.Threading.Tasks.TaskCompletionSource()
+    let thread =
+      System.Threading.Thread(fun () ->
+        try
+          action ()
+          tcs.SetResult()
+        with ex ->
+          tcs.SetException(ex))
+    thread.IsBackground <- true
+    thread.Name <- name
+    thread.Start()
+    tcs.Task
+
+  /// Read the worker's stdout until it names its socket, then post WorkerReady
+  /// (or WorkerSpawnFailed). Runs off the agent loop. Bounded by
+  /// Timeouts.warmupInactivityLimit, reset on every WARMUP_PROGRESS= line, and
+  /// by the hard Timeouts.warmupAbsoluteMax (see WarmupSupervision.decidePoll).
+  let awaitWorkerPort
     (sessionId: SessionId)
     (proc: Process)
     (inbox: MailboxProcessor<SessionCommand>)
-    (_ct: CancellationToken) =
-    let pid = proc.Id
+    (ct: CancellationToken)
+    =
     Async.Start(async {
-      let mutable reason = ExternalFSharpService.message
+      use cts =
+        CancellationTokenSource.CreateLinkedTokenSource(ct)
+      let started = DateTime.UtcNow
+      let absoluteDeadline = started + Timeouts.warmupAbsoluteMax
+      let mutable timeoutReason : string option = None
+      cts.CancelAfter(Timeouts.warmupInactivityLimit)
+      let linkedCt = cts.Token
       try
-        if not proc.HasExited then
-          proc.Kill(entireProcessTree = true)
-          do! proc.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds 5.) |> Async.AwaitTask
-      with error -> reason <- reason + " Process retirement: " + error.Message
-      try proc.EnableRaisingEvents <- false with _ -> ()
-      proc.Dispose()
-      inbox.Post(SessionCommand.WorkerSpawnFailed(sessionId, pid, reason))
-    })
+        let stderrLines = System.Collections.Concurrent.ConcurrentQueue<string>()
+        let stderrTask =
+          runOnDedicatedThread "bozzetto-worker-stderr-reader" (fun () ->
+            try
+              let mutable line = proc.StandardError.ReadLine()
+              while not (isNull line) do
+                stderrLines.Enqueue(line)
+                Log.debug "[worker %s] %s" (SessionId.value sessionId) line
+                line <- proc.StandardError.ReadLine()
+            with _ -> ())
+        let mutable found = None
+        while Option.isNone found do
+          let! line = proc.StandardOutput.ReadLineAsync(linkedCt).AsTask() |> Async.AwaitTask
+          match isNull line with
+          | true ->
+            let workerPid = proc.Id
+            let stderrSummary =
+              stderrLines.ToArray()
+              |> Array.truncate 20
+              |> String.concat "\n"
+            try proc.EnableRaisingEvents <- false with _ -> ()
+            try proc.Dispose() with _ -> ()
+            inbox.Post(
+              SessionCommand.WorkerSpawnFailed(
+                sessionId,
+                workerPid,
+                match String.IsNullOrWhiteSpace stderrSummary with
+                | true -> "Worker process exited before reporting its socket"
+                | false -> sprintf "Worker process exited before reporting its socket. stderr:\n%s" stderrSummary))
+            found <- Some ""
+          | false when DateTime.UtcNow > absoluteDeadline ->
+            timeoutReason <- Some (WarmupSupervision.absoluteTimeoutReason (DateTime.UtcNow - started))
+            found <- Some ""
+          | false ->
+            match line.StartsWith("WARMUP_PROGRESS=", StringComparison.Ordinal) with
+            | true ->
+              let payload = line.Substring("WARMUP_PROGRESS=".Length)
+              inbox.Post(SessionCommand.WorkerWarmupProgress(sessionId, payload))
+              // Progress observed: a slow-but-working warm-up keeps its clock.
+              try cts.CancelAfter(Timeouts.warmupInactivityLimit) with :? ObjectDisposedException -> ()
+            | false ->
+              match line.StartsWith(WorkerSocketPrefix, StringComparison.Ordinal) with
+              | true -> found <- Some (line.Substring(WorkerSocketPrefix.Length))
+              | false -> ()
+        match found with
+        | Some socketPath when socketPath.Length > 0 ->
+          // Ready: the startup guard must not trip on the long-lived read below.
+          cts.CancelAfter(Threading.Timeout.Infinite)
+          let proxy = WorkerSocketClient.proxy (SessionId.value sessionId) socketPath
+          inbox.Post(SessionCommand.WorkerReady(sessionId, proc.Id, socketPath, proxy))
+          // Keep draining stdout to EOF so the worker never blocks on a full pipe.
+          let drainTask =
+            runOnDedicatedThread "bozzetto-worker-stdout-reader" (fun () ->
+              try
+                let mutable l = proc.StandardOutput.ReadLine()
+                while not (isNull l) do
+                  (match AppOutput.tryParse l with
+                   | Some payload -> inbox.Post(SessionCommand.WorkerAppOutput(sessionId, payload))
+                   | None -> ())
+                  l <- proc.StandardOutput.ReadLine()
+              with _ -> ())
+          do! stderrTask |> Async.AwaitTask
+          do! drainTask |> Async.AwaitTask
+          WorkerSocketClient.forget socketPath
+        | Some _ ->
+          match timeoutReason with
+          | Some reason ->
+            try proc.Kill(entireProcessTree = true) with ex2 ->
+              Log.warn "[SessionManager] Kill on absolute warmup deadline: %s" ex2.Message
+            try proc.EnableRaisingEvents <- false with _ -> ()
+            try proc.Dispose() with _ -> ()
+            inbox.Post(SessionCommand.WorkerSpawnFailed(sessionId, proc.Id, reason))
+          | None -> ()
+          do! stderrTask |> Async.AwaitTask
+        | None ->
+          do! stderrTask |> Async.AwaitTask
+      with
+      | :? OperationCanceledException when not ct.IsCancellationRequested ->
+        // Silent, not slow: no line arrived within the inactivity window.
+        let stderrSummary =
+          try
+            proc.StandardError.ReadToEnd()
+          with _ -> ""
+        try proc.Kill(entireProcessTree = true) with ex2 ->
+          Log.warn "[SessionManager] Kill on startup timeout: %s" ex2.Message
+        try proc.EnableRaisingEvents <- false with _ -> ()
+        try proc.Dispose() with _ -> ()
+        inbox.Post(
+          SessionCommand.WorkerSpawnFailed(
+            sessionId,
+            proc.Id,
+            sprintf
+              "%s (set BOZZETTO_WARMUP_INACTIVITY_SECONDS to adjust)%s"
+              (WarmupSupervision.inactivityTimeoutReason Timeouts.warmupInactivityLimit)
+              (match String.IsNullOrWhiteSpace stderrSummary with
+               | true -> ""
+               | false -> sprintf "\nstderr:\n%s" stderrSummary)))
+      | ex ->
+        let stderrSummary =
+          try
+            proc.StandardError.ReadToEnd()
+          with _ -> ""
+        try proc.Kill(entireProcessTree = true) with ex2 ->
+          Log.warn "[SessionManager] Kill on spawn failure: %s" ex2.Message
+        try proc.EnableRaisingEvents <- false with _ -> ()
+        try proc.Dispose() with _ -> ()
+        inbox.Post(
+          SessionCommand.WorkerSpawnFailed(
+            sessionId, proc.Id,
+            sprintf "Failed to connect to worker: %s%s"
+              ex.Message
+              (match String.IsNullOrWhiteSpace stderrSummary with
+               | true -> ""
+               | false -> sprintf "\nstderr:\n%s" stderrSummary)))
+    }, ct)
 
   /// Stop a worker gracefully: send Shutdown with a bounded wait, then kill the
   /// whole process tree. A bounded wait prevents an injected unresponsive proxy
@@ -415,12 +631,9 @@ module SessionManager =
 
   let internal defaultRuntime = {
     StartWorkerProcess = startWorkerProcess
-    AwaitWorkerPort = refuseLocalWorker
+    AwaitWorkerPort = awaitWorkerPort
     StopWorker = stopWorker
-    RunBuildAsync = fun _projects _workingDir -> async {
-      return
-        ExternalFSharpService.refuse ()
-    }
+    RunBuildAsync = SessionBuild.runBuildAsync
   }
 
   /// Create the supervisor MailboxProcessor.

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- The per-session F# worker. The daemon launches it from its own `host/`
+         directory (Args.resolveHostLaunch) and talks to it over the F# worker
+         wire (Bozzetto.Core WorkerWire). Each worker hosts one FSI session. -->
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+        <AssemblyName>Bozzetto.Host</AssemblyName>
+        <RootNamespace>Bozzetto.Host</RootNamespace>
+        <TargetFramework></TargetFramework>
+        <TargetFrameworks>$(BozzettoTargetFrameworks)</TargetFrameworks>
+        <GenerateRuntimeConfigDevFile>false</GenerateRuntimeConfigDevFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Bozzetto.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Bozzetto.Core\Bozzetto.Core.fsproj" />
+        <!-- Session code that references ASP.NET Core must resolve it in the
+             process that evaluates it. -->
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Include="WorkerServer.fs" />
+        <Compile Include="WorkerMain.fs" />
+        <Compile Include="Program.fs" />
+    </ItemGroup>
+
+</Project>

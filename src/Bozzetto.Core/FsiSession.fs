@@ -1,8 +1,8 @@
 /// The seam between Bozzetto's session logic and the FSI session it drives.
 ///
-/// `IFsiSession` names exactly what the worker needs from a session, in FCS-free terms, so the session can be
-/// either in this process (`InProcessFsiSession`, wrapping an FsiEvaluationSession) or in an isolated host
-/// process (the remote implementation over FsiProtocol). Nothing above this seam touches a compiler-service type.
+/// `IFsiSession` names exactly what the worker needs from a session, in FCS-free terms. The implementation is
+/// `InProcessFsiSession`, wrapping an FsiEvaluationSession in the worker. Nothing above this seam touches a
+/// compiler-service type.
 module Bozzetto.FsiSession
 
 open System

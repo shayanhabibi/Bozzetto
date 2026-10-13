@@ -14,7 +14,7 @@
         <IsPackable>true</IsPackable>
         <ToolCommandName>boz</ToolCommandName>
         <PackageOutputPath>./nupkg</PackageOutputPath>
-        <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackCompilerWorkerPayload</TargetsForTfmSpecificContentInPackage>
+        <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackCompilerWorkerPayload;PackFSharpWorkerPayload</TargetsForTfmSpecificContentInPackage>
 
         <!-- NuGet config -->
         <PackageId>Bozzetto</PackageId>
@@ -145,6 +145,10 @@
         <ProjectReference Include="../Bozzetto.Composer.Protocol/Bozzetto.Composer.Protocol.fsproj" />
         <ProjectReference Include="$(FidelityDataProject)" />
         <ProjectReference Include="..\Bozzetto.Core\Bozzetto.Core.fsproj" />
+        <!-- Built before the daemon so host/ can carry it; never linked. -->
+        <ProjectReference Include="..\Bozzetto.Host\Bozzetto.Host.fsproj"
+                          PrivateAssets="all"
+                          ReferenceOutputAssembly="false" />
     </ItemGroup>
 
     <ItemGroup>
@@ -250,9 +254,31 @@
     </ItemGroup>
   </Target>
 
-  <!-- Remove only generated legacy host output left by an earlier local build. -->
-  <Target Name="RemoveRetiredFSharpHostOutput" AfterTargets="Build" Condition="'$(TargetFramework)' != ''">
+  <!-- The daemon launches each F# session's worker from host/ beside its own
+       assembly (Args.resolveHostLaunch). Start from an empty host/ so a file a
+       previous build shipped can never linger in the worker's closure. -->
+  <Target Name="CopyFSharpWorkerOutput" AfterTargets="Build" Condition="'$(TargetFramework)' != ''">
+    <ItemGroup>
+      <_FSharpWorkerFiles Include="$(MSBuildThisFileDirectory)../Bozzetto.Host/bin/$(Configuration)/$(TargetFramework)/**/*" />
+    </ItemGroup>
+    <Error Condition="'@(_FSharpWorkerFiles)' == ''"
+           Text="F#-WORKER: Bozzetto.Host has no $(Configuration)/$(TargetFramework) output to place in host/." />
     <RemoveDir Directories="$(TargetDir)host" />
+    <Copy SourceFiles="@(_FSharpWorkerFiles)" DestinationFiles="@(_FSharpWorkerFiles->'$(TargetDir)host/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- The installed tool carries the F# worker under tools/<tfm>/any/host/. -->
+  <Target Name="PackFSharpWorkerPayload" Condition="'$(TargetFramework)' != ''">
+    <ItemGroup>
+      <_FSharpWorkerPackFiles Include="$(MSBuildThisFileDirectory)../Bozzetto.Host/bin/$(Configuration)/$(TargetFramework)/**/*" />
+    </ItemGroup>
+    <Error Condition="'@(_FSharpWorkerPackFiles)' == ''"
+           Text="F#-WORKER: packing requires a built Bozzetto.Host $(Configuration)/$(TargetFramework) output." />
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="@(_FSharpWorkerPackFiles)">
+        <PackagePath>tools/$(TargetFramework)/any/host/%(RecursiveDir)</PackagePath>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
   </Target>
 
 </Project>

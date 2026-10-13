@@ -219,6 +219,8 @@
         <Compile Include="EvalPipeline.fs" />
         <Compile Include="Affordances.fs" />
         <Compile Include="WorkerProtocol.fs" />
+        <Compile Include="WorkerWire.fs" />
+        <Compile Include="WorkerSocketClient.fs" />
         <Compile Include="Features\CohortLedgerExport.fs" />
         <Compile Include="CrossCheckoutOverlap.fs" />
         <Compile Include="Features\Verification.fs" />
@@ -308,6 +310,8 @@
         <PackageReference Include="TreeSitter.DotNet" />
 
         <PackageReference Include="FuzzySharp" />
+        <PackageReference Include="Ionide.ProjInfo" />
+        <PackageReference Include="Ionide.ProjInfo.FCS" />
         <PackageReference Include="System.Configuration.ConfigurationManager" />
         <PackageReference Include="Fantomas.Core" />
         <PackageReference Include="FSharp.SystemTextJson" />

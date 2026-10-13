@@ -30,6 +30,8 @@
         <Compile Include="../Bozzetto.Composer.Tests/LiveProviderTests.fs" Link="Composer/LiveProviderTests.fs" />
         <Compile Include="ComposerSupervisorTests.fs" />
         <Compile Include="ComposerWorkerClientTests.fs" />
+        <Compile Include="WorkerWireTests.fs" />
+        <Compile Include="FSharpWorkerTests.fs" />
         <Compile Include="ManagedBuildTests.fs" />
         <Compile Include="ComposerBinaryProtocolTests.fs" />
         <Compile Include="UiBridgeTests.fs" />
@@ -565,6 +567,8 @@
         <ProjectReference Include="..\Bozzetto.Simulation\Bozzetto.Simulation.fsproj" />
         <ProjectReference Include="..\Bozzetto\Bozzetto.fsproj" />
         <ProjectReference Include="../Bozzetto.Diagnostics/Bozzetto.Diagnostics.fsproj" />
+        <!-- Built for FSharpWorkerTests, which launches the worker as a process. -->
+        <ProjectReference Include="..\Bozzetto.Host\Bozzetto.Host.fsproj" ReferenceOutputAssembly="false" />
         <!-- #141/#142's outcome gate needs a REAL compiled project with no package references (the SDK's
              implicit FSharp.Core — the config every normal user is in, and Bozzetto's own dogfood tests
              never exercise since Bozzetto.Tests.fsproj references Bozzetto.Core). Same
@@ -575,7 +579,16 @@
                           ReferenceOutputAssembly="false" />
     </ItemGroup>
 
-  <Target Name="RemoveRetiredFSharpHostOutput" AfterTargets="Build">
+  <!-- The daemon launches each F# session's worker from host/ beside its own
+       assembly (Args.resolveHostLaunch). Start from an empty host/ so a file a
+       previous build shipped can never linger in the worker's closure. -->
+  <Target Name="CopyFSharpWorkerOutput" AfterTargets="Build">
+    <ItemGroup>
+      <_FSharpWorkerFiles Include="$(MSBuildThisFileDirectory)../Bozzetto.Host/bin/$(Configuration)/$(TargetFramework)/**/*" />
+    </ItemGroup>
+    <Error Condition="'@(_FSharpWorkerFiles)' == ''"
+           Text="F#-WORKER: Bozzetto.Host has no $(Configuration)/$(TargetFramework) output to place in host/." />
     <RemoveDir Directories="$(TargetDir)host" />
+    <Copy SourceFiles="@(_FSharpWorkerFiles)" DestinationFiles="@(_FSharpWorkerFiles->'$(TargetDir)host/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 </Project>

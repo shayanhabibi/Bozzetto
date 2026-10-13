@@ -8,7 +8,7 @@ open System.Threading
 let createEffectDeps
   (sessionManager: MailboxProcessor<SessionManager.SessionCommand>)
   (readSnapshot: unit -> SessionManager.QuerySnapshot)
-  (_autoOpenNamespacesForDirectory: string -> bool)
+  (autoOpenNamespacesForDirectory: string -> bool)
   (configureWarmupAutoOpen: string -> Result<OutputLine, string>)
   : EffectDeps =
   {
@@ -16,13 +16,23 @@ let createEffectDeps
       // Non-blocking: read from CQRS snapshot instead of mailbox
       let sessions = SessionManager.QuerySnapshot.allSessions (readSnapshot())
       SessionOperations.resolveSession sessionIdOpt sessions
-    GetProxy = fun _sessionId ->
-      Utils.Log.warn "%s" ExternalFSharpService.message
-      None
-    CreateSession = fun _targets _workingDir _workflow ->
+    GetProxy = fun sessionId ->
+      // Lock-free: the snapshot names the worker's socket.
+      match Map.tryFind sessionId (readSnapshot()).WorkerBaseUrls with
+      | Some socketPath when socketPath.Length > 0 ->
+        WorkerSocketClient.proxy (WorkerProtocol.SessionId.value sessionId) socketPath
+        |> WorkerProtocol.SessionProxy.touching (fun () ->
+          sessionManager.Post(SessionManager.SessionCommand.TouchSession sessionId))
+        |> Some
+      | _ -> None
+    CreateSession = fun targets workingDir workflow ->
       async {
-        return
-          ExternalFSharpService.refuse ()
+        let autoOpenNamespaces = autoOpenNamespacesForDirectory workingDir
+        let! result =
+          sessionManager.PostAndAsyncReply(fun reply ->
+            SessionManager.SessionCommand.CreateSession(
+              targets, workingDir, autoOpenNamespaces, workflow, reply))
+        return result
       }
     ConfigureWarmupAutoOpen = fun workingDir ->
       async { return configureWarmupAutoOpen workingDir }
@@ -34,10 +44,13 @@ let createEffectDeps
               sessionId, reply))
         return result
       }
-    RestartSession = fun _sessionId _rebuild ->
+    RestartSession = fun sessionId rebuild ->
       async {
-        return
-          ExternalFSharpService.refuse ()
+        let! result =
+          sessionManager.PostAndAsyncReply(fun reply ->
+            SessionManager.SessionCommand.RestartSession(
+              sessionId, rebuild, reply))
+        return result
       }
     ListSessions = fun () ->
       // CQRS read path — lock-free snapshot, no mailbox blocking

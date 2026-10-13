@@ -49,8 +49,8 @@ type ActorArgs = {
   AutoOpenNamespaces: bool
   OnEvent: Features.Events.BozzettoEvent -> unit
   Workflow: WorkflowTypes.SessionWorkflow
-  /// The retained in-process engine supports component tests. Isolated requests
-  /// are refused before loading; embedded production F# hosting is retired.
+  /// InProcess in the session worker and in component tests. Isolated is not
+  /// restored and is refused before any loading.
   FsiKind: SessionKinds.FsiSessionKind
 }
 
@@ -76,19 +76,12 @@ type ActorResult = {
   ProjectRoles: Bozzetto.ProjectLoading.ClassifiedProject list
 }
 
-/// Only bare F# actors remain available for retained component tests.
-/// Refuse named targets before filesystem discovery, shadowing or evaluation.
-let internal componentTestSolution targets =
-  match targets with
-  | [ SessionProjectTarget.Bare ] -> ProjectLoading.emptySolution
-  | _ -> invalidOp ExternalFSharpService.message
-
 /// Phase 1: Create the actor and return callbacks immediately.
 /// The FSI session init runs in the background — callers can start
 /// serving MCP (get_fsi_status etc.) right away while warm-up proceeds.
 let createActorImmediate a =
   match a.FsiKind with
-  | SessionKinds.Isolated -> invalidOp ExternalFSharpService.message
+  | SessionKinds.Isolated -> invalidOp SessionKinds.isolatedNotRestored
   | SessionKinds.InProcess -> ()
   // Every phase below reports through the SAME `SessionWarmUpProgress` event
   // `createFsiSession`'s own onProgress already uses — one wire
@@ -97,8 +90,16 @@ let createActorImmediate a =
   // motion the whole way through, not just once FSI itself starts.
   let emitWarmupProgress step total message =
     a.OnEvent(Features.Events.BozzettoEvent.SessionWarmUpProgress {| Step = step; Total = total; Message = message |})
-  let originalSln = componentTestSolution a.LoadConfig.Targets
-  a.Logger.LogInfo "Bare component-test session — no project loading"
+  let originalSln =
+    match a.LoadConfig.Targets with
+    | [ SessionProjectTarget.Bare ] ->
+      a.Logger.LogInfo "Bare session — skipping project loading"
+      ProjectLoading.emptySolution
+    | targets ->
+      a.Logger.LogInfo (sprintf "Loading explicit session target: %s" (SessionProjectTarget.describe targets))
+      let sln = loadSolution a.Logger a.LoadConfig emitWarmupProgress
+      a.Logger.LogInfo "Project loading complete."
+      sln
 
   let shadowDir, sln, instrumentationMaps =
     match List.isEmpty originalSln.Projects && List.isEmpty originalSln.References with
