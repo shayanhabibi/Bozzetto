@@ -58,7 +58,7 @@ Composer must revalidate an artifact before execution, regardless of its reporte
 
 Callers must hold and renew a lease while building or testing Clef and Composer code. These leases appear on the Work page beside the compiler worker.
 
-The host and compiler worker run on .NET. Their contracts allow native host and worker processes to replace the .NET processes without making compiler authority depend on CLR types, editors or transport protocols. Bozzetto no longer hosts an embedded F# REPL. Composer is planned to support interactive Clef execution through LLVM ORC JIT, but that backend has not been implemented.
+The host and compiler worker run on .NET. Their contracts allow native host and worker processes to replace the .NET processes without making compiler authority depend on CLR types, editors or transport protocols. F# REPL sessions run in per-session workers ([F# sessions](docs/fsharp-sessions.md)). Composer is planned to support interactive Clef execution through LLVM ORC JIT, but that backend has not been implemented.
 
 ## Roles in Fidelity
 

@@ -2,7 +2,7 @@
 
 Bozzetto's MCP adapter exposes the daemon's Composer, coordination and work-admission owners. The daemon listens on port **47749** for MCP, HTTP and browser access; **47750** is the control listener, not the MCP endpoint. Composer is a differential compiler. Open an explicit `.fidproj`, reserve before editing, and execute only through `composer_run_current`.
 
-This is the supported-remit reference, not a reproduction of every inherited tool advertised by `tools/list`. Embedded production F# session hosting is retired. Remaining registrations and descriptions for that surface are drift to remove, not instructions for a working REPL, warmup or runtime-patching service.
+This is the supported-remit reference, not a reproduction of every inherited tool advertised by `tools/list`. F# session tools (`create_*_session`, `send_fsharp_code`, `check_fsharp_code`, `cancel_eval`, `reset_fsi_session`, `hard_reset_fsi_session`) drive per-session workers again; [F# sessions](fsharp-sessions.md) owns their scope. Runtime-patching (hot reload) registrations are drift to remove.
 
 **Evidence:** this reference is based on checkout source reads, not an executed daemon probe or acceptance run. Registration is in `src/Bozzetto/McpServer.fs`, `configureMcpProtocolWithComposer`; attributed methods are in `src/Bozzetto/McpTools.fs`, `src/Bozzetto/ComposerTools.fs` and `src/Bozzetto/McpResources.fs`. An installed release can differ from the checkout. Retrieval was unavailable to this audit's read/write-only tool surface; no fresh index snapshot or pinned source revision was established.
 

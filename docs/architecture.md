@@ -25,7 +25,7 @@ The governing rules are in `AGENTS.md`, particularly Architecture, Language and 
 
 ## Processes and listeners
 
-The current topology is local. Sessions are workspace identities within the supervised Composer service, not a promise of a separate FSI process for every client session.
+The current topology is local. Composer sessions are workspace identities within the supervised Composer service. F# REPL sessions are separate: each runs in its own `Bozzetto.Host` worker over the F# worker wire; see [F# sessions](fsharp-sessions.md).
 
 ```text
 Browser, editor and agent adapters
@@ -191,7 +191,7 @@ Distribution requires an owner-approved workload and budget. Acceptance must use
 
 ## Excluded surfaces and navigation
 
-Embedded F# session hosting, FSI/REPL warmup and F# session hot reload are retired. `src/Bozzetto/DaemonMode.fs` refuses creation/restart through the retired provider boundary and disables previous-session resume. Retained warmup, live-testing, SSE and terminal-related plumbing in that file is removal work, not a supported workflow to recover.
+F# session hot reload, live testing over the worker and app runs are not restored; F# session creation, restart, resume and evaluation are ([F# sessions](fsharp-sessions.md)). F# work stays outside Clef semantics: it is .NET tooling, not a native hosting obligation. Retained SSE and terminal-related plumbing in `src/Bozzetto/DaemonMode.fs` is removal work, not a supported workflow to recover.
 
 Harmony, MonoMod, detours and injection are excluded. Datastar, the Raylib GUI, the Visual Studio extension, SageTUI and terminal rendering are not current product surfaces. Retained Raylib application/game demos are distinct from the removed GUI. SSE is not the browser UI pipeline; MCP transport compatibility does not reinstate it as an internal architecture.
 

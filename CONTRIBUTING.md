@@ -20,9 +20,8 @@ Welcome! Bozzetto is an open-source project and we genuinely appreciate contribu
 - An editor — VS Code with Ionide, Neovim, Rider, or your preference
 
 Bozzetto on `47749`/`47750` is the only daemon surface; it serves Clef/Composer
-through the `composer_*` tools and the `/work` browser page. Embedded
-production FSI hosting is retired by the [architecture](docs/architecture.md),
-and no separate F# REPL service is part of the workflow. Changes to Bozzetto's
+through the `composer_*` tools and the `/work` browser page, and hosts F# REPL
+sessions in per-session workers ([F# sessions](docs/fsharp-sessions.md)). Changes to Bozzetto's
 own F# code are validated with `dotnet build` and the unfiltered test suite.
 Follow [the implementation skill](tools/skills/bozzetto/SKILL.md) and retain the
 unfiltered build/test gates below.
@@ -159,7 +158,7 @@ A filtered run (`--filter`, `--filter-test-list`, `--filter-test-case`) is fine 
 
 **5. Read the TRUST line.** Every tier prints one `TRUST tier=… registered=N ran=N … verdict=…` line. `Trusted` is the only accepted verdict; `NarrowedRun` means a filter was on, and `NothingRan` or `CountMismatch` exit 3. Exit code 0 only means that nothing which ran failed.
 
-The inherited F# session steps that used to live here — creating a session for `src/Bozzetto.Tests/Bozzetto.Tests.fsproj`, `#load`-based hot reload, and running `Expecto.Tests.runTestsWithCLIArgs` inside the session — describe retained host code that is not a product surface. This checkout refuses to create, resume or rebuild an inherited F# session at the retired provider boundary ([architecture](docs/architecture.md)).
+An F# session on `src/Bozzetto.Core/Bozzetto.Core.fsproj` (`create_project_session`) is a fast inner loop for Core code: prove a change with `send_fsharp_code`, persist it, then `hard_reset_fsi_session rebuild=true`. The leased build and unfiltered suite above remain the acceptance gate. `#load`-based hot reload is not restored ([F# sessions](docs/fsharp-sessions.md)).
 
 ### Debugging with Breakpoints
 

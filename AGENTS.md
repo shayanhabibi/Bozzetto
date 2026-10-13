@@ -1,15 +1,16 @@
 # Bozzetto: agent guidelines
 
-Bozzetto is a development controller for Clef/Composer work. It runs as one
-daemon on ports 47749 (MCP, HTTP API, browser UI) and 47750 (control listener),
-supervises a Composer worker, and grants leases for builds and test runs. It
+Bozzetto is a development controller for Clef/Composer work and a host for F#
+REPL sessions. It runs as one daemon on ports 47749 (MCP, HTTP API, browser UI)
+and 47750 (control listener), supervises a Composer worker and one F# worker per
+session, and grants leases for builds and test runs. It
 sits outside the compiler pipeline: compiler work is accepted on component
 gates, and Bozzetto adapts on its own track.
 
-Embedded F# session hosting is retired in this checkout
-([architecture](docs/architecture.md)).
-No F# REPL service is part of any workflow. LLVM ORC JIT is the intended future
-Clef execution backend and is not implemented.
+F# sessions run in per-session `Bozzetto.Host` workers over a typed binary
+wire; [F# sessions](docs/fsharp-sessions.md) owns what is restored and what is
+not. LLVM ORC JIT is the intended future Clef execution backend and is not
+implemented.
 
 ## Working principles
 
@@ -84,9 +85,15 @@ Use the `composer_*` tools and the `/work` page on 47749. Open an explicit
 `.fidproj`, reserve before editing, and execute only through
 `composer_run_current`.
 
-Requests to create, resume or rebuild an inherited F# session are refused at
-the retired provider boundary. That refusal is the documented behaviour, not a
-bug to work around.
+## F# sessions
+
+Create an explicit session (`create_project_session`, `create_solution_session`
+or `create_bare_session`), wait for `get_session_status` Ready, and prove code
+with `send_fsharp_code` or `check_fsharp_code` before writing files. After
+persisting project edits, `hard_reset_fsi_session rebuild=true` reloads the
+real build. A create with missing build outputs is refused as `NeedsRebuild`:
+build under a lease, then create. Hot reload, live testing and app runs are not
+restored; read [F# sessions](docs/fsharp-sessions.md) before extending them.
 
 ## Building and testing Bozzetto
 
@@ -226,7 +233,8 @@ and trust ledgers that validation records cite before deleting artifacts.
 - **Updates are pushed, not polled.** Owners publish Fidelity.FSharp.Incremental
   inputs and the bridge pushes on change. Do not add timers or polling loops.
 - **Daemon and worker wire:** the typed binary contract in
-  `Bozzetto.Composer.Protocol`. Daemon and worker deploy as a matching pair.
+  `Bozzetto.Composer.Protocol` for Composer, and `Bozzetto.Core/WorkerWire.fs`
+  for F# session workers. Daemon and workers deploy as a matching set.
 - **Serialization edges:** where JSON or another text format is unavoidable,
   prefer Fidelity.Data over `System.Text.Json`. Adding the reference is still a
   dependency decision for the owner.
@@ -292,6 +300,7 @@ Composer is a **differential compiler**: it recompiles what a change affects.
 | `src/Bozzetto/` | CLI, daemon, MCP server and browser bridge |
 | `src/Bozzetto.Composer/` | Composer worker process |
 | `src/Bozzetto.Composer.Protocol/` | Typed binary daemon and worker contract |
+| `src/Bozzetto.Host/` | Per-session F# worker (FSI, project loading) |
 | `src/Bozzetto.Tests/`, `src/Bozzetto.Composer.Tests/` | Expecto suites |
 | `src/bozzetto-web/` | Partas.Solid browser UI |
 | `src/bozzetto-vscode/` | VS Code extension (Fable) |

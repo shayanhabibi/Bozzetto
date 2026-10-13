@@ -1,6 +1,6 @@
 # Operations
 
-Bozzetto operates one development controller for Clef/Composer work. Port 47749 serves MCP, HTTP and the browser pages; port 47750 serves control. Composer is a differential compiler. The interim host targets `net10.0`; embedded F# session hosting is retired. Native hosting, LLVM ORC execution and distributed lab-node operation are requirements or planned capabilities, not operational delivery claims here.
+Bozzetto operates one development controller for Clef/Composer work. Port 47749 serves MCP, HTTP and the browser pages; port 47750 serves control. Composer is a differential compiler. The interim host targets `net10.0`; F# REPL sessions run in per-session `Bozzetto.Host` workers launched from the daemon's `host/` directory ([F# sessions](fsharp-sessions.md)). Native hosting, LLVM ORC execution and distributed lab-node operation are requirements or planned capabilities, not operational delivery claims here.
 
 The governing lifecycle, lease and policy rules are in `AGENTS.md`. This document consolidates operational guidance without granting new scheduling or termination authority. See [architecture.md](architecture.md) for process ownership and [development.md](development.md) for validation and promotion.
 
@@ -174,7 +174,8 @@ Equal display values cannot erase changed PSG proof identity. Effect cleanup can
 | A lease expires during a long run | Check renewal route, renewal outcomes, holder stability and daemon restart. Do not resurrect an expired token or trust work that continued without coordinated admission. |
 | Dashboard CPU is low while the machine is busy | Inspect external builds, tests, editor servers and inference separately. The daemon-tree figure is not whole-host load. |
 | Values remain old on a connected page | Inspect sample/record times, serials, incarnation and collector coverage. Reconcile at the owning push boundary; do not add a frontend fetch loop. |
-| A retired F# request is refused | Accept the retirement boundary. Use Composer; do not recreate REPL, warmup, hard-reset or patching workflows. |
+| An F# session create answers `NeedsRebuild` | Build the named project under `acquire_full_build_lease`, release the lease, then create again. |
+| A retired F# request is refused (config.fsx, Jupyter, cohort integration ref, hot reload) | Accept the boundary; see [F# sessions](fsharp-sessions.md). |
 
 For memory investigation, use bounded measurements of available RAM/swap, process RSS with parents and cgroup usage. Useful manual probes include:
 

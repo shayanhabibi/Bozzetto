@@ -44,7 +44,7 @@ Development restarts are authorized by `AGENTS.md`, but check active leases and 
 | Agent-work run and report sequence | A participant's bounded, ordered progress facts. These are not Composer handles or proof identities. |
 | Lease holder and lease ID | Resource admission for caller-owned work. The holder must remain stable across retries; the grant ID identifies one admitted lease. |
 
-`AGENTS.md` specifies checkout-aware session routing and a `Gone` refusal with a create hint for a worktree without a session. That rule does not revive retained F# session creation. For Clef work, open the explicit `.fidproj` through Composer and retain its returned handles. If a client route still requires a retired session provider, report the refusal as a boundary defect rather than creating a REPL or falling back to another checkout.
+`AGENTS.md` specifies checkout-aware session routing and a `Gone` refusal with a create hint for a worktree without a session. For an F# REPL in a worktree, create a session there ([F# sessions](fsharp-sessions.md)). For Clef work, open the explicit `.fidproj` through Composer and retain its returned handles. If a client route still requires a retired provider, report the refusal as a boundary defect and keep the work in its own checkout.
 
 For strict agent-work reporting, `src/Bozzetto/McpCohortIntegration.fs` requires a nonempty bound MCP transport identity and has no name fallback. The cohort owner then requires that member to be present. Changing the report's name or session label cannot transfer a run to another connection.
 
@@ -65,7 +65,7 @@ Human reservations, cancellation and worker retirement affect agents too. Coordi
 
 See [composer-workflow.md](composer-workflow.md) for conflicts, epochs and per-region witness/object validation. Fidelity.PSG evidence must retain compiler-owned scope and identity. Equal display summaries or unchanged row counts cannot prove that evidence remains valid.
 
-No embedded F# session hosting, REPL, FSI warmup or runtime patching belongs in this loop. LLVM ORC JIT remains planned. Retained F# tools in a catalog do not establish an execution service, and editor saves must not be assumed to build or run a Composer revision.
+F# REPL sessions and runtime patching do not belong in this Clef loop; F# sessions have their own loop ([F# sessions](fsharp-sessions.md)). LLVM ORC JIT remains planned, and editor saves must not be assumed to build or run a Composer revision.
 
 ## Cohort ownership and claims
 

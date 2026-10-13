@@ -11,5 +11,6 @@ Bozzetto 0.1.0 is unreleased. Earlier history is in git.
 - The operations journal records every caller's Composer operations and run output.
 - The Composer page shows each accepted build's regions with their witness and object states.
 - Source lives under `src/`. Build contracts, the pipeline's tier plan and lease client, the quality matrix, the agent skill and the agent hooks live under `tools/`.
-- Removed: embedded F# session hosting, runtime patching, the Raylib GUI, the Visual Studio extension, SageTUI, the demo recorder, the samples, the shell scripts and the inherited SageFs release history.
+- F# REPL sessions run again, each in its own `Bozzetto.Host` worker over a typed binary wire, with Ionide.ProjInfo project loading. Hot reload, live testing and app runs are not restored; see `docs/fsharp-sessions.md`.
+- Removed: runtime patching, the Raylib GUI, the Visual Studio extension, SageTUI, the demo recorder, the samples, the shell scripts and the inherited SageFs release history.
 - Bozzetto began as a fork of SageFs; the license keeps the original copyright notice.

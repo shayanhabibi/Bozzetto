@@ -16,10 +16,18 @@ Use the shared daemon’s `composer_*` tools and `/work` page on ports
 47749/47750. Open an explicit `.fidproj`, reserve before editing, build with
 that reservation, and execute through `composer_run_current`.
 
-Embedded F# session hosting is retired. Creating, resuming or rebuilding an
-inherited F# session is refused; do not retry it or substitute an F# REPL.
 LLVM ORC JIT remains a planned backend. See the
 [architecture](../../../docs/architecture.md).
+
+## F# REPL sessions
+
+Each session runs in its own `Bozzetto.Host` worker. Create one explicitly
+(`create_project_session`, `create_solution_session` or `create_bare_session`),
+wait for `get_session_status` Ready, and use `send_fsharp_code` /
+`check_fsharp_code` as the inner loop. Persist working code, then
+`hard_reset_fsi_session rebuild=true` to run the real build. A failed eval does
+not corrupt the session. Scope and open work:
+[F# sessions](../../../docs/fsharp-sessions.md).
 
 ## Bozzetto’s own F# implementation
 
