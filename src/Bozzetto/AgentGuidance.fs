@@ -26,6 +26,8 @@ let loopSteps = [
   "Clef: composer_open_project with an absolute .fidproj. Retain the returned host/session/epoch and source revision."
   "Call composer_reserve_edit before source writes; proceed only on success. Edit, then composer_build with that reservation."
   "After an accepted build, execute only with composer_run_current. Observe composer://sessions or /work. Use composer_retire_worker before compiler replacement, coordinating with other owners."
+  "F# REPL: create_project_session (explicit .fsproj), create_solution_session or create_bare_session; wait until get_session_status is Ready. Prove code with send_fsharp_code (end statements with ';;') or check_fsharp_code before writing files."
+  "After persisting project edits, hard_reset_fsi_session rebuild=true reloads the real build. A failed eval does not corrupt the session: fix the code, don't reset."
   "F# implementation: RED: write the smallest failing Expecto test in Bozzetto.Tests. GREEN: fix the .fs file; use 2 spaces and Expecto.Flip messages first."
   "Build: acquire_full_build_lease; after grant run dotnet build; release_work_lease with lease_id=<granted leaseId> when the process completes, including failure."
   "Tests: acquire_test_suite_lease; after grant run unfiltered dotnet Bozzetto.Tests/bin/<cfg>/net10.0/Bozzetto.Tests.dll --summary; require TRUST verdict=Trusted; release_work_lease with lease_id=<granted leaseId> when the process completes, including failure."
@@ -52,7 +54,7 @@ let private bulleted (lines: string list) =
 /// The MCP ServerInstructions text.
 let serverInstructions =
   String.concat "\n" [
-    "Bozzetto on 47749/47750 serves Clef/Composer. Embedded production FSI hosting is retired; no separate F# REPL service is part of this workflow. F# changes to Bozzetto itself use the work-lease loop below."
+    "Bozzetto on 47749/47750 serves Clef/Composer and F# REPL sessions, each in its own worker. Acceptance for F# changes to Bozzetto itself uses the work-lease loop below."
     ""
     "First minute:"
     yield! numbered firstMinute
@@ -87,9 +89,9 @@ let bozzettoLoop = serverInstructions
 type BozzettoPrompts() =
 
   [<McpServerPrompt(Name = BackToTheReplPromptName, Title = "Back to the Bozzetto loop")>]
-  [<Description("Resume the current Composer or leased F# implementation workflow: name where work drifted and restate the provider and work-lease loop.")>]
+  [<Description("Resume the current Composer, F# session or leased F# implementation workflow: name where work drifted and restate the provider and work-lease loop.")>]
   static member BackToTheRepl() : string = backToTheRepl
 
   [<McpServerPrompt(Name = BozzettoLoopPromptName, Title = "The Bozzetto loop")>]
-  [<Description("The current Bozzetto loop: provider identity, Composer reservation/build/run, leased F# build and unfiltered trusted tests, and daemon ownership.")>]
+  [<Description("The current Bozzetto loop: provider identity, Composer reservation/build/run, F# sessions, leased F# build and unfiltered trusted tests, and daemon ownership.")>]
   static member BozzettoLoop() : string = bozzettoLoop

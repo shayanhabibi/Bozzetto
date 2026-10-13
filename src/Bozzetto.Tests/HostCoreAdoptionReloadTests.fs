@@ -8,9 +8,9 @@ open Expecto.Flip
 open Bozzetto.Server.McpTools
 open Bozzetto.McpTools
 
-/// The October 1 host transition retires production F# session rebuilds.
-/// MCP guidance must expose that boundary while lifecycle formatters remain
-/// testable through injected component runtimes.
+/// F# sessions run in per-session workers again, and hard reset replaces the
+/// worker. Its guidance must say what rebuild does and still route Bozzetto's
+/// own acceptance through leased builds and suites.
 let private hardResetMethod =
   typeof<BozzettoTools>.GetMethods(BindingFlags.Instance ||| BindingFlags.Public)
   |> Array.find (fun m -> m.Name = "hard_reset_fsi_session")
@@ -21,11 +21,15 @@ let private hardResetDescription : string =
 [<Tests>]
 let tests =
   testList "HostCoreAdoption compatibility guidance and retained lifecycle" [
-    test "WHY — hard reset guidance exposes provider retirement and leased validation because an agent cannot reload a production F# session in this checkout" {
+    test "WHY — hard reset guidance says what a rebuild does and keeps leased validation because an agent reloads edited project code through it" {
       hardResetDescription
-      |> Expect.stringContains "the description states the production provider is retired" "Embedded production FSI hosting is retired"
+      |> Expect.stringContains "the description says the worker is replaced" "Replace the session's worker process"
       hardResetDescription
-      |> Expect.stringContains "session recreation and rebuild are refused" "refused at the retired provider boundary"
+      |> Expect.stringContains "rebuild builds before the swap" "rebuild=true first runs dotnet build"
+      hardResetDescription
+      |> Expect.stringContains "the asynchronous rebuild is observed through status" "get_session_status reports the rebuild's progress and outcome"
+      hardResetDescription.Contains "retired provider boundary"
+      |> Expect.isFalse "the description must not claim session rebuilds are refused"
       for lease in [ "acquire_full_build_lease"; "acquire_test_suite_lease"; "release_work_lease" ] do
         hardResetDescription |> Expect.stringContains "validation uses the daemon's work leases" lease
       hardResetDescription
@@ -34,18 +38,17 @@ let tests =
       |> Expect.stringContains "the acceptance command requires trusted coverage" "TRUST verdict=Trusted"
       for step in [ "composer_open_project"; "composer_reserve_edit"; "composer_build"; "composer_run_current" ] do
         hardResetDescription |> Expect.stringContains "Composer uses its explicit provider contract" step
-      for promise in [ "rebuild=true rebuilds"; "poll get_session_status"; "ONE blessed reload path" ] do
-        hardResetDescription.Contains promise
-        |> Expect.isFalse "the description must not promise a retired production reload"
+      hardResetDescription.Contains "ONE blessed reload path"
+      |> Expect.isFalse "the description must not promise the retired hot-reload path"
     }
 
-    test "WHY — the rebuild parameter describes the same retired provider boundary because parameter guidance must not advertise unavailable session rebuilds" {
+    test "WHY — the rebuild parameter says what it builds because parameter guidance is what an agent reads when choosing it" {
       let parameterDescription =
         hardResetMethod.GetParameters()
         |> Array.find (fun parameter -> parameter.Name = "rebuild")
         |> fun parameter -> parameter.GetCustomAttribute<DescriptionAttribute>().Description
       parameterDescription
-      |> Expect.stringContains "the compatibility flag cannot restore session rebuilds" "cannot rebuild an inherited F# session"
+      |> Expect.stringContains "the flag builds the session's projects" "runs dotnet build for the session's projects"
       parameterDescription
       |> Expect.stringContains "caller-owned builds must acquire their work lease" "acquire_full_build_lease"
       parameterDescription

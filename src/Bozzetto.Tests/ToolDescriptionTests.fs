@@ -235,19 +235,22 @@ let descriptionPropertyTests =
       desc.Contains "run_project_tests"
       |> Expect.isFalse "the lease tool must not redirect acceptance to the retired session runner"
 
-    testCase "snippet check and soft reset guidance preserve the retired provider boundary rather than redirecting to a session rebuild"
+    testCase "snippet check and soft reset guidance describe the live session and keep leased validation"
     <| fun _ ->
       for tool in [ "check_fsharp_code"; "reset_fsi_session" ] do
         let desc =
           toolDescriptions
           |> List.find (fun (name, _) -> name = tool)
           |> snd
-        desc |> Expect.stringContains "the compatibility operation identifies provider retirement" "Embedded production FSI hosting is retired"
+        desc.Contains "retired provider boundary"
+        |> Expect.isFalse "the tool must not claim F# sessions are refused"
         desc |> Expect.stringContains "project validation uses a caller-owned build" "dotnet build"
         desc |> Expect.stringContains "project validation acquires its work lease" "acquire_full_build_lease"
         desc |> Expect.stringContains "project validation releases its work lease" "release_work_lease"
-        desc.Contains "hard_reset_fsi_session"
-        |> Expect.isFalse "compatibility guidance must not redirect validation to a retired session rebuild"
+      let check = toolDescriptions |> List.find (fun (name, _) -> name = "check_fsharp_code") |> snd
+      check |> Expect.stringContains "check never executes" "without executing it"
+      let reset = toolDescriptions |> List.find (fun (name, _) -> name = "reset_fsi_session") |> snd
+      reset |> Expect.stringContains "a soft reset does not reload project code; the rebuild path is named" "hard_reset_fsi_session with rebuild=true"
 
     testCase "targeted_verify description teaches trust-first workflow"
     <| fun _ ->

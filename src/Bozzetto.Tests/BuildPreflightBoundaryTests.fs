@@ -14,69 +14,105 @@ open Bozzetto.Server.DaemonMode
 let private refused<'T> () : Result<'T, BozzettoError> =
   Error (BozzettoError.SessionCreationFailed ExternalFSharpService.message)
 
-let private makeOps () =
-  createSessionOpsWithRecovery
-    Unchecked.defaultof<_>
-    (fun () -> failwith "retired creation must not read a session snapshot")
-    Unchecked.defaultof<_>
-    (Some(fun _ _ -> failwith "retired creation must not recover or rebuild a project"))
+/// A stand-in supervisor: records every command that reaches it, answers a
+/// create with a fixed refusal (so no manifest work follows) and a restart
+/// with a fixed success.
+type private Supervisor() =
+  let received = System.Collections.Concurrent.ConcurrentQueue<SessionManager.SessionCommand>()
+  let mailbox =
+    MailboxProcessor.Start(fun inbox ->
+      let rec loop () = async {
+        let! command = inbox.Receive()
+        received.Enqueue command
+        match command with
+        | SessionManager.SessionCommand.CreateSession (_, _, _, _, reply) ->
+          reply.Reply(Error (BozzettoError.SessionCreationFailed "supervisor probe"))
+        | SessionManager.SessionCommand.RestartSession (_, _, reply) -> reply.Reply(Ok "restarted")
+        | _ -> ()
+        return! loop () }
+      loop ())
+  member _.Mailbox = mailbox
+  member _.Received = List.ofSeq received
+
+let private emptySnapshot () = SessionManager.QuerySnapshot.empty
+
+let private makeOps (supervisor: Supervisor) recover =
+  createSessionOpsWithRecovery supervisor.Mailbox emptySnapshot Unchecked.defaultof<_> recover
+
+let private missingProject = SessionProjectTarget.Project "/missing/Project.fsproj"
 
 [<Tests>]
 let tests =
-  testSequenced <| testList "External FSharp service boundary" [
-    for target in
-      [ SessionProjectTarget.Bare
-        SessionProjectTarget.Project "/missing/Project.fsproj"
-        SessionProjectTarget.Solution "/missing/Workspace.slnx" ] do
-      testTask (sprintf "create %A refuses before config, recovery, mailbox or manifest work" target) {
-        let! result = (makeOps ()).CreateSession [ target ] "/missing/working-directory" WorkflowTypes.SessionWorkflow.Interactive
-        result |> Expect.equal "the external provider owns FSharp execution" (refused ())
-      }
-
-    testTask "restart refuses before inspecting or stopping the previous session" {
-      let! result = (makeOps ()).RestartSession (SessionId.newId()) true
-      result |> Expect.equal "restart cannot invoke build recovery or a worker" (refused ())
+  testSequenced <| testList "F# session admission" [
+    testTask "a project whose build outputs are missing is refused as NeedsRebuild before the supervisor" {
+      let supervisor = Supervisor()
+      let! result = (makeOps supervisor None).CreateSession [ missingProject ] "/missing" WorkflowTypes.SessionWorkflow.Interactive
+      match result with
+      | Error (BozzettoError.NeedsRebuild missing) ->
+        missing |> Expect.contains "names the missing project" (Path.GetFullPath "/missing/Project.fsproj")
+      | other -> failtestf "expected NeedsRebuild, got %A" other
+      supervisor.Received |> Expect.isEmpty "a refused create never reaches the supervisor"
     }
 
-    testTask "Elm creation and restart cannot bypass the provider refusal" {
+    testTask "recovery runs once and an output still missing afterwards is still refused" {
+      let supervisor = Supervisor()
+      let recoveries = ref 0
+      let recover = fun _ _ -> task { recoveries.Value <- recoveries.Value + 1; return Ok () }
+      let! result = (makeOps supervisor (Some recover)).CreateSession [ missingProject ] "/missing" WorkflowTypes.SessionWorkflow.Interactive
+      match result with
+      | Error (BozzettoError.NeedsRebuild _) -> ()
+      | other -> failtestf "expected NeedsRebuild after recovery, got %A" other
+      recoveries.Value |> Expect.equal "recovery is attempted exactly once" 1
+      supervisor.Received |> Expect.isEmpty "a still-refused create never reaches the supervisor"
+    }
+
+    testTask "a ready create reaches the supervisor with its target" {
+      let supervisor = Supervisor()
+      let! result = (makeOps supervisor None).CreateSession [ SessionProjectTarget.Bare ] (Path.GetTempPath()) WorkflowTypes.SessionWorkflow.Interactive
+      result |> Expect.equal "the supervisor's answer is the caller's answer" (Error (BozzettoError.SessionCreationFailed "supervisor probe"))
+      match supervisor.Received with
+      | [ SessionManager.SessionCommand.CreateSession (targets, _, _, _, _) ] ->
+        targets |> Expect.equal "the target crosses unchanged" [ SessionProjectTarget.Bare ]
+      | other -> failtestf "expected one CreateSession, got %A" other
+    }
+
+    testTask "restart reaches the supervisor" {
+      let supervisor = Supervisor()
+      let! result = (makeOps supervisor None).RestartSession (SessionId.newId()) true
+      result |> Expect.equal "the supervisor answers the restart" (Ok "restarted")
+    }
+
+    testTask "Elm creation and restart reach the supervisor" {
+      let supervisor = Supervisor()
       let deps =
         Bozzetto.ElmDaemon.createEffectDeps
-          Unchecked.defaultof<_>
-          (fun () -> failwith "retired Elm operation must not read a snapshot")
-          (fun _ -> failwith "retired Elm operation must not evaluate configuration")
-          (fun _ -> failwith "retired Elm operation must not write configuration")
+          supervisor.Mailbox
+          emptySnapshot
+          (fun _ -> true)
+          (fun _ -> failwith "creating a session must not write configuration")
       let! created =
         deps.CreateSession [ SessionProjectTarget.Bare ] "/missing" WorkflowTypes.SessionWorkflow.Interactive
         |> Async.StartAsTask
-      created |> Expect.equal "Elm create refuses" (refused ())
+      created |> Expect.equal "Elm create is answered by the supervisor" (Error (BozzettoError.SessionCreationFailed "supervisor probe"))
       let! restarted = deps.RestartSession (SessionId.newId()) true |> Async.StartAsTask
-      restarted |> Expect.equal "Elm restart refuses" (refused ())
+      restarted |> Expect.equal "Elm restart is answered by the supervisor" (Ok "restarted")
     }
 
-    testCase "raw worker creation refuses before resolving paths or starting a process" <| fun () ->
-      match SessionManager.startWorkerProcess (SessionId.newId()) [ SessionProjectTarget.Bare ] null false WorkflowTypes.SessionWorkflow.Interactive (fun _ _ -> failwith "no worker can exit") with
-      | Error (BozzettoError.WorkerSpawnFailed message) ->
-        message |> Expect.equal "the worker boundary reports the retired FSharp hosting refusal" ExternalFSharpService.message
-      | other -> failtestf "expected the production worker refusal, got %A" other
-
-    testTask "production build delegate refuses without examining projects or a working directory" {
-      let! result =
-        SessionManager.defaultRuntime.RunBuildAsync Unchecked.defaultof<_> null
-        |> Async.StartAsTask
-      result |> Expect.equal "raw rebuild cannot recreate FSharp hosting" (refused ())
-    }
-
-    testTask "startup resume preserves the old manifest and never calls session operations" {
-      let infra : DaemonInfra =
-        { Log = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance
-          LoggerFactory = Unchecked.defaultof<_>
-          HttpClient = Unchecked.defaultof<_>
-          FrictionStore = None
-          DaemonStreamId = "retirement-test"
-          Cts = Unchecked.defaultof<_>
-          StateChangedEvent = Unchecked.defaultof<_>
-          McpFetchTimeoutSec = 1.0 }
-      do! resumePreviousSessions infra Unchecked.defaultof<_> Unchecked.defaultof<_> null (fun () -> failwith "retired sessions must not resume")
+    testTask "a proxy is handed out only for a session whose worker published its socket" {
+      let supervisor = Supervisor()
+      let ready = SessionId.newId()
+      let starting = SessionId.newId()
+      let snapshot () =
+        { SessionManager.QuerySnapshot.empty with
+            WorkerBaseUrls = Map.ofList [ ready, "/run/boz-fsw/worker.sock" ] }
+      let ops = createSessionOpsWithRecovery supervisor.Mailbox snapshot Unchecked.defaultof<_> None
+      let! readyProxy = ops.GetProxy ready
+      readyProxy |> Expect.isSome "a published socket routes"
+      let! startingProxy = ops.GetProxy starting
+      startingProxy |> Expect.isNone "a session without a socket has no route"
+      let deps = Bozzetto.ElmDaemon.createEffectDeps supervisor.Mailbox snapshot (fun _ -> true) (fun _ -> Ok Unchecked.defaultof<_>)
+      deps.GetProxy ready |> Expect.isSome "Elm routes the same published socket"
+      deps.GetProxy starting |> Expect.isNone "Elm has no route without a socket"
     }
 
     testTask "cohort integration refuses before changing its binding or provisioning a worktree" {

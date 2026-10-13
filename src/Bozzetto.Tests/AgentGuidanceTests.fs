@@ -54,13 +54,21 @@ let serverInstructionsTests = testList "MCP server instructions" [
       |> List.filter (fun needle -> not (contains needle text))
       |> Expect.isEmpty (sprintf "%s must state lease admission, trust and cleanup" label)
 
-  testCase "retired FSI provider calls cannot be advertised by connected guidance or compatibility prompts" <| fun _ ->
+  testCase "retired tool names and the external-SageFS redirect cannot be advertised by connected guidance or compatibility prompts" <| fun _ ->
     for label, text in guidanceSurfaces () do
-      [ "get_fsi_status"; "get_startup_info"; "create_session"; "send_fsharp_code"; "check_fsharp_code"
-        "create_project_session"; "create_solution_session"; "create_bare_session"; "hard_reset_fsi_session"
-        "reset_fsi_session"; "get_session_status"; "cancel_eval"; "targeted_verify"; "Resume from the REPL"; "separate SageFS" ]
+      // "create_session" alone is the retired name; "create_project_session" contains it as a substring.
+      let withoutCurrentCreates =
+        [ "create_project_session"; "create_solution_session"; "create_bare_session" ]
+        |> List.fold (fun (acc: string) name -> acc.Replace(name, "")) text
+      [ "get_fsi_status"; "get_startup_info"; "targeted_verify"; "Resume from the REPL"; "separate SageFS" ]
       |> List.filter (fun needle -> contains needle text)
-      |> Expect.isEmpty (sprintf "%s must not prescribe a retired execution provider" label)
+      |> Expect.isEmpty (sprintf "%s must not prescribe a retired tool or provider" label)
+      withoutCurrentCreates |> contains "create_session" |> Expect.isFalse (sprintf "%s must not name the retired create_session" label)
+
+  testCase "F# session guidance creates an explicit session, proves code in it, then reloads persisted edits by rebuild" <| fun _ ->
+    for label, text in guidanceSurfaces () do
+      text |> expectOrdered label [ "create_project_session"; "get_session_status"; "Ready"; "send_fsharp_code"; "check_fsharp_code"; "hard_reset_fsi_session rebuild=true" ]
+      text |> contains "don't reset" |> Expect.isTrue (sprintf "%s must say a failed eval is fixed, not reset" label)
 
   testCase "WHY — every loop step is in them, so the instructions and the prompts can't drift apart" <| fun _ ->
     loopSteps

@@ -241,8 +241,12 @@ module Integration =
   let hostCase (name: string) (body: unit -> unit) =
     Expecto.Tests.testCase (tagged name) body |> register Host
 
+  /// These journeys were written against the SageFs HTTP worker and its
+  /// hot-reload, live-testing and app-run surfaces. F# sessions are restored
+  /// over the typed worker wire without those surfaces, so each journey is
+  /// re-admitted one at a time against what it actually exercises.
   let fsharpRetirementReason =
-    "2026-10-01: Bozzetto production F# hosting removed; the retained in-process F# adapter is host code for component tests, not a product surface."
+    "2026-10-01: SageFs-era F# journey (HTTP worker, hot reload, live testing or app runs). F# sessions returned 2026-10-14 over the typed worker wire without those surfaces; re-admit this journey individually once what it exercises is restored."
 
   /// Preserve the old behavioral assertion as history, without pretending it
   /// passed or weakening its expectation to accommodate a removed capability.

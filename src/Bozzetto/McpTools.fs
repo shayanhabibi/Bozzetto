@@ -471,7 +471,7 @@ RETURN VALUE:
 - On failure: the F# compiler diagnostic message with file/line info pointing to the error.
 - Use get_recent_fsi_events afterward to see the full event log if the return value is ambiguous.
 
-WORKFLOW: Use this tool instead of dotnet build or dotnet run. Bozzetto IS your compiler and runtime.""")>]
+WORKFLOW: The session is your inner loop: an eval takes milliseconds where a build takes minutes. Persist working code to its file, then hard_reset_fsi_session rebuild=true to reload the project's real build. A dotnet build and the unfiltered test suite, run under acquire_full_build_lease / acquire_test_suite_lease and released with release_work_lease, remain the acceptance gate.""")>]
     member _.send_fsharp_code(
         [<Description("Your agent or model name (e.g. 'claude', 'copilot', 'cursor'). Shown in event logs and get_recent_fsi_events output so you can trace which agent submitted which code. Use a short, stable identifier.")>]
         agentName: string,
@@ -670,7 +670,9 @@ NOTE: This does NOT load anything — it only lists what is available on disk. P
         getAvailableProjects ctx "mcp" wd |> withEcho ctx "get_available_projects"
 
     [<McpServerTool>]
-    [<Description("""Retained compatibility operation for resetting an existing F# adapter. Its in-process component-test behavior clears interactive definitions while retaining loaded project assemblies. Embedded production FSI hosting is retired in this checkout; creating, resuming or rebuilding an inherited F# session is refused at the retired provider boundary. A reset cannot restore that provider.
+    [<Description("""Soft-reset the F# session: discard every interactive definition and start a fresh FSI session inside the same worker, keeping the project's loaded assemblies. Use it when interactive state has become confusing, not because an eval failed (a failed eval does not corrupt the session).
+
+A soft reset does not reload changed project code. After editing and building project files, use hard_reset_fsi_session with rebuild=true.
 
 Validate Bozzetto F# changes with a caller-owned dotnet build under acquire_full_build_lease, then release_work_lease with the granted leaseId. Run the built Bozzetto.Tests DLL unfiltered with --summary under acquire_test_suite_lease, require TRUST verdict=Trusted, then release_work_lease. Follow wait/refused lease decisions without bypassing daemon accounting. Clef/Composer work uses composer_open_project, composer_reserve_edit, composer_build and composer_run_current.""")>]
     member _.reset_fsi_session(
@@ -690,7 +692,9 @@ Validate Bozzetto F# changes with a caller-owned dotnet build under acquire_full
         |> withEchoOutcome ctx "reset_fsi_session"
 
     [<McpServerTool>]
-    [<Description("""Compatibility operation for inherited F# sessions. Embedded production FSI hosting is retired in this checkout; requests to recreate or rebuild an inherited F# session are refused at the retired provider boundary. rebuild=true does not restore that provider. Injected lifecycle models remain component-test code.
+    [<Description("""Replace the session's worker process. rebuild=false starts a fresh worker on the current build output, then retires the old one. rebuild=true first runs dotnet build for the session's projects while the old worker keeps serving, then swaps in a worker that loads the new build; a failed build is reported with the build's diagnostics. rebuild=true returns at once; get_session_status reports the rebuild's progress and outcome. rebuild=false returns once the replacement worker has started. Either way every REPL definition is cleared.
+
+Use rebuild=true after editing project files, so the session runs your persisted code. Do not hard reset because an eval failed.
 
 F# IMPLEMENTATION VALIDATION:
 - Read get_daemon_status and compare the installed daemon version with the checkout. Report version skew and preserve the shared daemon; never restart or reinstall it yourself.
@@ -699,9 +703,9 @@ F# IMPLEMENTATION VALIDATION:
 - Filters are for iteration only. Follow wait/refused lease decisions without bypassing daemon accounting.
 
 CLEF/COMPOSER:
-composer_open_project with an absolute .fidproj -> composer_reserve_edit before writing -> composer_build with the reservation -> execution only through composer_run_current. No F# session is required. Managed runtime patching remains retired.""")>]
+composer_open_project with an absolute .fidproj -> composer_reserve_edit before writing -> composer_build with the reservation -> execution only through composer_run_current. No F# session is required. Managed runtime patching (hot reload) remains retired.""")>]
     member _.hard_reset_fsi_session(
-        [<Description("Retained compatibility flag (default false). rebuild=true cannot rebuild an inherited F# session in this checkout: embedded production FSI hosting is retired. Validate F# changes with a caller-owned dotnet build under acquire_full_build_lease and release_work_lease.")>]
+        [<Description("Default false. rebuild=true runs dotnet build for the session's projects before the replacement worker loads them; the old worker serves until the build succeeds. Acceptance still needs a caller-owned dotnet build under acquire_full_build_lease and release_work_lease.")>]
         [<Optional; DefaultParameterValue(false)>]
         rebuild: bool,
         [<Description("Working directory of the MCP client. When provided, routes to the matching session if exactly one session uses this directory. If multiple sessions share the directory, you must call switch_session first (or pass session_id explicitly) — the daemon will not guess.")>]
@@ -724,7 +728,7 @@ composer_open_project with an absolute .fidproj -> composer_reserve_edit before 
         | false -> execute |> withEchoOutcome ctx "hard_reset_fsi_session"
 
     [<McpServerTool>]
-    [<Description("""Retained compatibility operation for checking an F# snippet against an existing in-process adapter without executing it. Diagnostics describe that adapter's snippet context rather than full project type-checking. Embedded production FSI hosting is retired in this checkout; creating, resuming or rebuilding an inherited F# session is refused at the retired provider boundary. This tool does not establish an available production F# execution provider.
+    [<Description("""Type-check an F# snippet in the session's context without executing it or changing session state. Diagnostics describe the snippet against everything the session has loaded and defined; this is not a full project type-check.
 
 Validate Bozzetto F# changes with a caller-owned dotnet build under acquire_full_build_lease, then release_work_lease with the granted leaseId. Run the built Bozzetto.Tests DLL unfiltered with --summary under acquire_test_suite_lease, require TRUST verdict=Trusted, then release_work_lease. Follow wait/refused lease decisions without bypassing daemon accounting. Clef/Composer work uses composer_open_project, composer_reserve_edit, composer_build and composer_run_current.""")>]
     member _.check_fsharp_code(

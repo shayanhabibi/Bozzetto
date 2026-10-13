@@ -22,43 +22,41 @@ let private refusalMessage action =
     None
   with :? InvalidOperationException as error -> Some error.Message
 
-let private expectRetiredBoundary action =
+let private expectIsolatedRefusal action =
   refusalMessage action
-  |> Expect.equal "the retired provider's specific reason is required"
-       (Some Bozzetto.ExternalFSharpService.message)
+  |> Expect.equal "the isolated host's specific reason is required"
+       (Some Bozzetto.SessionKinds.isolatedNotRestored)
 
-let private assertTargetRefused target =
+/// An Isolated request is refused before any project loading, initialization
+/// or warm-up event, whatever its target.
+let private assertIsolatedRefused target =
   let mutable initialized = false
   let mutable emitted = false
   let args =
     { mkCommonActorArgs TestInfrastructure.quietLogger false
         (fun _ -> emitted <- true)
         { Bozzetto.Args.ProjectLoadConfig.empty with Targets = [ target ] } with
-        InitFunctions = [ fun _ -> initialized <- true; "sentinel", box true ] }
-  expectRetiredBoundary (fun () -> createActorImmediate args)
+        InitFunctions = [ fun _ -> initialized <- true; "sentinel", box true ]
+        FsiKind = Bozzetto.SessionKinds.Isolated }
+  expectIsolatedRefusal (fun () -> createActorImmediate args)
   initialized |> Expect.isFalse "refusal must precede injected initialization"
   emitted |> Expect.isFalse "refusal must precede warmup events"
 
 [<Tests>]
 let tests =
   testList "ActorCreation" [
-    testList "retained component target boundary" [
-      test "explicit Bare preserves empty component-test metadata" {
-        componentTestSolution [ Bozzetto.SessionProjectTarget.Bare ]
-        |> Expect.equal "the bare evaluator needs no project loader" emptySolution
+    testList "isolated FSI host boundary" [
+      test "an isolated bare session refuses before actor setup" {
+        assertIsolatedRefused Bozzetto.SessionProjectTarget.Bare
       }
 
-      test "named project refuses before actor setup" {
-        assertTargetRefused (Bozzetto.SessionProjectTarget.Project "never-read.fsproj")
-      }
-
-      test "named solution refuses before actor setup" {
-        assertTargetRefused (Bozzetto.SessionProjectTarget.Solution "never-read.slnx")
+      test "an isolated project session refuses before its project is read" {
+        assertIsolatedRefused (Bozzetto.SessionProjectTarget.Project "never-read.fsproj")
       }
 
       test "refusal control catches a bypass returning empty metadata" {
         let mutable killed = false
-        try expectRetiredBoundary (fun () -> emptySolution)
+        try expectIsolatedRefusal (fun () -> emptySolution)
         with :? Expecto.AssertException -> killed <- true
         killed |> Expect.isTrue "returning empty metadata must fail the same refusal control"
       }
