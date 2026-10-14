@@ -31,15 +31,25 @@ let tests = testList "Resource monitoring" [
     HostSample.cpuDelta b a |> Expect.isNone "counter reset invalidates interval"
     HostSample.cpuDelta a { b with Count = 3 } |> Expect.isNone "hotplug invalidates interval"
 
-  testCase "a platform without an I/O-wait counter reports wait as unavailable, not zero" <| fun _ ->
+  testCase "a figure the platform cannot measure is left out, never reported as zero" <| fun _ ->
     let a : HostSample.Cpu = { Total = 1000L; Idle = 600L; Wait = None; Count = 4 }
     let b = { a with Total = 1100L; Idle = 660L }
     HostSample.cpuDelta a b |> Expect.equal "busy is total minus idle; wait is absent" (Some(40., None, 100L))
     let sample = HostSample.project (Some { raw() with Cpu = Some a }) { raw() with Cpu = Some b }
-    sample.Metrics |> Array.find (fun m -> m.Name = "Host CPU I/O wait") |> _.Value
-    |> Expect.isNone "no counter is not 0% wait"
+    let names = sample.Metrics |> Array.map _.Name
+    [| "Host CPU busy"; "Logical CPUs" |] |> Array.forall (fun n -> Array.contains n names)
+    |> Expect.isTrue "busy and the CPU count remain"
+    for absent in [ "Host CPU I/O wait"; "Swap in"; "Swap out" ] do
+      names |> Array.contains absent |> Expect.isFalse (sprintf "%s has no counter here and is not shown" absent)
     sample.Metrics |> Array.find (fun m -> m.Name = "Host CPU busy") |> _.Value
     |> Expect.equal "busy still measured" (Some 40.)
+
+  testCase "a measured counter is shown, empty only until a second sample makes a rate" <| fun _ ->
+    let measured = { raw() with SwapIn = Some 10L; SwapOut = Some 20L }
+    let first = HostSample.project None measured
+    for name in [ "Host CPU I/O wait"; "Swap in"; "Swap out" ] do
+      first.Metrics |> Array.tryFind (fun m -> m.Name = name) |> Option.map _.Value
+      |> Expect.equal (sprintf "%s is present and not yet measured" name) (Some None)
 
   testCase "process CPU is core equivalents and PID reuse is unavailable" <| fun _ ->
     let p = counter 10L 100L

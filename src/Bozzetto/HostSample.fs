@@ -62,12 +62,18 @@ let project (previous: Raw option) (current: Raw) : HostResources =
     |> Option.bind (fun (old,now) -> if now < old || interval <= 0. then None else Some(float (now-old) * float current.SwapPageBytes * 1000. / interval))
   { SampledAtMs = current.At; IntervalMs = interval; SampleCostMs = 0.
     Sequence = 0L; Status = "observing"
-    Metrics = Array.append
-      [| metric "Host CPU busy" "percent" (delta |> Option.map (fun (busy,_,_) -> busy))
-         metric "Host CPU I/O wait" "percent" (delta |> Option.bind (fun (_,wait,_) -> wait))
-         metric "Logical CPUs" "count" (current.Cpu |> Option.map (fun c -> float c.Count))
-         metric "Swap in" "bytes/s" (swap _.SwapIn current.SwapIn)
-         metric "Swap out" "bytes/s" (swap _.SwapOut current.SwapOut) |] current.Metrics
+    // A figure the platform has no counter for is left out rather than sent
+    // empty for ever: an empty value then always means "not measured yet"
+    // (a rate needs a second sample) or "this reading failed".
+    Metrics = Array.concat [
+      [| metric "Host CPU busy" "percent" (delta |> Option.map (fun (busy,_,_) -> busy)) |]
+      (match current.Cpu with
+       | Some { Wait = None } -> [||]
+       | _ -> [| metric "Host CPU I/O wait" "percent" (delta |> Option.bind (fun (_,wait,_) -> wait)) |])
+      [| metric "Logical CPUs" "count" (current.Cpu |> Option.map (fun c -> float c.Count)) |]
+      (if current.SwapIn.IsSome then [| metric "Swap in" "bytes/s" (swap _.SwapIn current.SwapIn) |] else [||])
+      (if current.SwapOut.IsSome then [| metric "Swap out" "bytes/s" (swap _.SwapOut current.SwapOut) |] else [||])
+      current.Metrics ]
     Processes = selected; ProcessCount = current.Count; UnreadableCount = current.Unreadable
     OmittedCount = max 0 (current.Processes.Length - selected.Length)
     Note = current.Scope + " First CPU/rate reading needs a second observation. "

@@ -214,8 +214,11 @@ let HealthStrip (model: ModelView) (uptime: unit -> float) =
     }
   }
 
-let private metricText (m: ResourceMetricView) =
-  if not m.known then "unavailable / warming up"
+/// An empty reading is "warming up" only while no interval exists yet (a rate
+/// needs two samples); after that it is unavailable. The host leaves out the
+/// figures its platform cannot measure at all.
+let private metricText (interval: float) (m: ResourceMetricView) =
+  if not m.known then (if interval > 0. then "unavailable" else "warming up")
   elif m.unit = "bytes" then bytes m.value
   elif m.unit = "bytes/s" then bytes m.value + "/s"
   elif m.unit = "percent" then fixedPoint m.value 1 + "%"
@@ -237,8 +240,8 @@ let HostPanel (model: ModelView) (local: LocalView) (uptime: unit -> float) (con
         h2 (class' = "text-lg font-bold flex-1") { "Whole-machine resources" }
         span (class' = "badge badge-outline") { status () }
         Information "Resource readings" (fun () -> [|
-          "Linux counters are sampled every two seconds during the selected observation window. Collection stops when the window ends."
-          "Process CPU uses 100% for one logical CPU. RSS includes shared pages. Thread count shows the number of process threads."
+          "Host counters are sampled every two seconds during the selected observation window. Collection stops when the window ends."
+          "Process CPU uses 100% for one logical CPU. Resident memory (RSS, or the working set on Windows) includes shared pages. Thread count shows the number of process threads."
           model.resources.note
           "Sequence " + model.resources.sequence + " · interval " + fixedPoint (model.resources.interval / 1000.) 1 + "s · collection " + fixedPoint model.resources.cost 1 + "ms"
         |])
@@ -271,7 +274,7 @@ let HostPanel (model: ModelView) (local: LocalView) (uptime: unit -> float) (con
             yield fun m _ ->
               div (class' = "panel p-3") {
                 div (class' = "text-xs opacity-70") { m.id }
-                div (class' = "text-xl font-mono font-semibold") { metricText m }
+                div (class' = "text-xl font-mono font-semibold") { metricText model.resources.interval m }
               }
           }
         }
@@ -280,7 +283,7 @@ let HostPanel (model: ModelView) (local: LocalView) (uptime: unit -> float) (con
           table (class' = "table table-xs") {
             tbody () {
               For (each = model.resourceMetrics) {
-                yield fun m _ -> tr () { td () { m.id }; td (class' = "font-mono") { metricText m } }
+                yield fun m _ -> tr () { td () { m.id }; td (class' = "font-mono") { metricText model.resources.interval m } }
               }
             }
           }

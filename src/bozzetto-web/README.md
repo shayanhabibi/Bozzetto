@@ -8,8 +8,9 @@ talks to it over one WebSocket.
 The MCP listener (normally port 47749) serves two route-selected views from
 one bundle, with shared styling, navigation, bridge protocol and security:
 
-- `/dashboard`: explicitly requested, bounded Linux whole-host observations
-  (CPU, RAM/swap, pressure, available GPU counters and external processes), live
+- `/dashboard`: explicitly requested, bounded whole-host observations on Linux
+  and Windows (CPU, RAM/swap, pressure and GPU counters where the platform has
+  them, and external processes), live
   global agent work, and a labelled connection-time daemon
   snapshot. `boz rss` is the daemon reading, not total host memory.
 - `/work`: Clef project sessions, compiler worker, build/test leases and run output.
