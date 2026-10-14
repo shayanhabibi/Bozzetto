@@ -36,9 +36,32 @@ module WorkerWire =
     | Request of correlation: int64 * message: WorkerMessage
     | Reply of correlation: int64 * response: WorkerResponse
 
-  exception private WireFault of string
+  /// Why a frame was refused before or while its envelope was read.
+  [<RequireQualifiedAccess>]
+  type WireRefusal =
+    /// The magic does not name this protocol.
+    | ForeignFrame
+    | UnsupportedVersion of actual: uint16
+    | Truncated
+    | TrailingBytes of count: int64
+    | InvalidUtf8
+    /// A tag, count or flag outside what the profile declares.
+    | Malformed of detail: string
 
-  let private fault message = raise (WireFault message)
+  module WireRefusal =
+    let describe (refusal: WireRefusal) =
+      match refusal with
+      | WireRefusal.ForeignFrame -> "not a Bozzetto F# worker frame"
+      | WireRefusal.UnsupportedVersion actual -> sprintf "protocol version %d, expected %d" actual ProtocolVersion
+      | WireRefusal.Truncated -> "truncated frame"
+      | WireRefusal.TrailingBytes count -> sprintf "%d trailing bytes" count
+      | WireRefusal.InvalidUtf8 -> "invalid UTF-8 string"
+      | WireRefusal.Malformed detail -> detail
+
+  exception private WireFault of WireRefusal
+
+  let private fault detail = raise (WireFault (WireRefusal.Malformed detail))
+  let private refuse refusal = raise (WireFault refusal)
 
   /// Messages this wire carries. The rest belong to live testing and app runs,
   /// which the restored F# worker does not serve yet.
@@ -552,15 +575,15 @@ module WorkerWire =
 
   /// Decode one frame payload. A wrong magic or version is refused before the
   /// envelope is interpreted; trailing bytes are a fault.
-  let decode (payload: byte array) : Result<Envelope, string> =
+  let decode (payload: byte array) : Result<Envelope, WireRefusal> =
     try
       use buffer = new MemoryStream(payload, false)
       use r = new BinaryReader(buffer, UTF8Encoding(false, true), true)
       let head = r.ReadBytes magic.Length
-      if head <> magic then fault "not a Bozzetto F# worker frame"
+      if head <> magic then refuse WireRefusal.ForeignFrame
       let version = r.ReadUInt16()
       if version <> ProtocolVersion then
-        fault (sprintf "protocol version %d, expected %d" version ProtocolVersion)
+        refuse (WireRefusal.UnsupportedVersion version)
       let envelope =
         match readTag r with
         | 1 ->
@@ -575,13 +598,13 @@ module WorkerWire =
           Reply (correlation, readResponse r)
         | tag -> fault (sprintf "envelope tag %d" tag)
       if buffer.Position <> buffer.Length then
-        fault (sprintf "%d trailing bytes" (buffer.Length - buffer.Position))
+        refuse (WireRefusal.TrailingBytes (buffer.Length - buffer.Position))
       Ok envelope
     with
-    | WireFault message -> Error message
-    | :? EndOfStreamException -> Error "truncated frame"
-    | :? DecoderFallbackException -> Error "invalid UTF-8 string"
-    | :? FormatException as e -> Error e.Message
+    | WireFault refusal -> Error refusal
+    | :? EndOfStreamException -> Error WireRefusal.Truncated
+    | :? DecoderFallbackException -> Error WireRefusal.InvalidUtf8
+    | :? FormatException as e -> Error (WireRefusal.Malformed e.Message)
 
   // ---- framing ------------------------------------------------------------
 

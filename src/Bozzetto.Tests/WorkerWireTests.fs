@@ -151,7 +151,7 @@ let private roundTrip envelope = envelope |> WorkerWire.encode |> WorkerWire.dec
 let private refusal envelopeBytes =
   match WorkerWire.decode envelopeBytes with
   | Ok envelope -> failtestf "expected a refusal, decoded %A" envelope
-  | Error reason -> reason
+  | Error refusal -> WorkerWire.WireRefusal.describe refusal
 
 let private sample = WorkerWire.encode (WorkerWire.Request (7L, WorkerMessage.EvalCode ("1 + 1;;", "r1")))
 
@@ -226,41 +226,54 @@ let tests =
       WorkerWire.carries message |> Expect.isFalse "RunApp is not carried"
       Expect.throwsT<ArgumentException> "encode refuses" (fun () -> WorkerWire.encode (WorkerWire.Request (1L, message)) |> ignore)
 
-    testCase "uncarried requests are answered locally without touching the socket" <| fun () ->
+    testAsync "uncarried requests are answered locally without touching the socket" {
       let proxy = WorkerSocketClient.proxy "0123abcd" (Path.Combine(Path.GetTempPath(), "no-such-worker", Guid.NewGuid().ToString("N") + ".sock"))
-      match proxy (WorkerMessage.RunApp ("app.fsproj", AppRun.PreviousAddress.NoPreviousAddress, "r")) |> Async.RunSynchronously with
+      match! proxy (WorkerMessage.RunApp ("app.fsproj", AppRun.PreviousAddress.NoPreviousAddress, "r")) with
       | WorkerResponse.AppRunResult ("r", Error (BozzettoError.AppRunFailed (_, reason))) ->
         reason |> Expect.stringContains "names the message" "RunApp"
       | other -> failtestf "expected a local refusal, got %A" other
-      match proxy (WorkerMessage.GetInstrumentationMaps "m") |> Async.RunSynchronously with
+      match! proxy (WorkerMessage.GetInstrumentationMaps "m") with
       | WorkerResponse.InstrumentationMapsResult ("m", maps) -> maps |> Expect.isEmpty "no maps"
       | other -> failtestf "expected empty maps, got %A" other
+    }
 
-    testCase "a carried request to a missing worker raises instead of answering" <| fun () ->
+    testAsync "a carried request to a missing worker raises instead of answering" {
       let proxy = WorkerSocketClient.proxy "0123abcd" (Path.Combine(Path.GetTempPath(), "no-such-worker", Guid.NewGuid().ToString("N") + ".sock"))
-      Expect.throws "transport failure raises" (fun () -> proxy (WorkerMessage.GetStatus "s") |> Async.RunSynchronously |> ignore)
+      let! raised =
+        async {
+          try
+            let! _ = proxy (WorkerMessage.GetStatus "s")
+            return false
+          with _ -> return true
+        }
+      raised |> Expect.isTrue "transport failure raises"
+    }
 
     testList "framing" [
-      testCase "a frame survives the stream" <| fun () ->
+      testAsync "a frame survives the stream" {
         use stream = new MemoryStream()
-        WorkerWire.writeFrame stream sample |> Async.RunSynchronously
+        do! WorkerWire.writeFrame stream sample
         stream.Position <- 0L
-        match WorkerWire.readFrame stream |> Async.RunSynchronously with
+        match! WorkerWire.readFrame stream with
         | WorkerWire.FrameRead.Frame payload -> payload |> Expect.sequenceEqual "payload" sample
         | other -> failtestf "expected a frame, got %A" other
-        WorkerWire.readFrame stream |> Async.RunSynchronously |> Expect.equal "clean end" WorkerWire.FrameRead.Closed
+        let! rest = WorkerWire.readFrame stream
+        rest |> Expect.equal "clean end" WorkerWire.FrameRead.Closed
+      }
 
-      testCase "an end inside a frame is broken, not closed" <| fun () ->
+      testAsync "an end inside a frame is broken, not closed" {
         use stream = new MemoryStream()
-        WorkerWire.writeFrame stream sample |> Async.RunSynchronously
+        do! WorkerWire.writeFrame stream sample
         use cut = new MemoryStream(stream.ToArray()[.. int stream.Length - 2])
-        match WorkerWire.readFrame cut |> Async.RunSynchronously with
+        match! WorkerWire.readFrame cut with
         | WorkerWire.FrameRead.Broken reason -> reason |> Expect.stringContains "says where" "bytes into a"
         | other -> failtestf "expected Broken, got %A" other
+      }
 
-      testCase "an impossible announced length is refused before allocation" <| fun () ->
+      testAsync "an impossible announced length is refused before allocation" {
         use stream = new MemoryStream(BitConverter.GetBytes(WorkerWire.MaxFrameBytes + 1))
-        match WorkerWire.readFrame stream |> Async.RunSynchronously with
+        match! WorkerWire.readFrame stream with
         | WorkerWire.FrameRead.Broken reason -> reason |> Expect.stringContains "bound" "outside 1.."
-        | other -> failtestf "expected Broken, got %A" other ]
+        | other -> failtestf "expected Broken, got %A" other
+      } ]
   ]

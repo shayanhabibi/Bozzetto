@@ -146,9 +146,12 @@
         <ProjectReference Include="$(FidelityDataProject)" />
         <ProjectReference Include="..\Bozzetto.Core\Bozzetto.Core.fsproj" />
         <!-- Built before the daemon so host/ can carry it; never linked. -->
+        <!-- Private="false" also keeps the worker's apphost, deps.json and
+             runtimeconfig out of this output root: the worker belongs in host/. -->
         <ProjectReference Include="..\Bozzetto.Host\Bozzetto.Host.fsproj"
                           PrivateAssets="all"
-                          ReferenceOutputAssembly="false" />
+                          ReferenceOutputAssembly="false"
+                          Private="false" />
     </ItemGroup>
 
     <ItemGroup>

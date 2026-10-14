@@ -59,8 +59,8 @@ module WorkerSocketClient =
           | Ok other ->
             fail connection (sprintf "F# worker at %s sent an unexpected envelope: %A" socketPath other)
             running <- false
-          | Error reason ->
-            fail connection (sprintf "F# worker at %s sent an undecodable frame: %s" socketPath reason)
+          | Error refusal ->
+            fail connection (sprintf "F# worker at %s sent an undecodable frame: %s" socketPath (WorkerWire.WireRefusal.describe refusal))
             running <- false
     }
 
@@ -76,7 +76,7 @@ module WorkerSocketClient =
         let! first = WorkerWire.readFrame stream
         let hello =
           match first with
-          | WorkerWire.FrameRead.Frame payload -> WorkerWire.decode payload
+          | WorkerWire.FrameRead.Frame payload -> WorkerWire.decode payload |> Result.mapError WorkerWire.WireRefusal.describe
           | WorkerWire.FrameRead.Closed -> Error "the worker closed the connection before its Hello"
           | WorkerWire.FrameRead.Broken reason -> Error reason
         match hello with

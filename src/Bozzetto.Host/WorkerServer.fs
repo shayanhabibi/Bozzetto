@@ -78,8 +78,8 @@ let private serveConnection
           | Ok other ->
             eprintfn "[WorkerServer] refusing a connection that sent %A" other
             reading <- false
-          | Error reason ->
-            eprintfn "[WorkerServer] refusing an undecodable frame: %s" reason
+          | Error refusal ->
+            eprintfn "[WorkerServer] refusing an undecodable frame: %s" (WorkerWire.WireRefusal.describe refusal)
             reading <- false
     with
     | :? OperationCanceledException -> ()

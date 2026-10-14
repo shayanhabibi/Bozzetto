@@ -27,4 +27,4 @@ RETURN VALUE:
 - On failure: the F# compiler diagnostic message with file/line info pointing to the error.
 - Use get_recent_fsi_events afterward to see the full event log if the return value is ambiguous.
 
-WORKFLOW: Use this tool instead of dotnet build or dotnet run. Bozzetto IS your compiler and runtime.
+WORKFLOW: The session is your inner loop: an eval takes milliseconds where a build takes minutes. Persist working code to its file, then hard_reset_fsi_session rebuild=true to reload the project's real build. A dotnet build and the unfiltered test suite, run under acquire_full_build_lease / acquire_test_suite_lease and released with release_work_lease, remain the acceptance gate.

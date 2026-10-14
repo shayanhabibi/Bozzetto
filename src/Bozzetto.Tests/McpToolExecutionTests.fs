@@ -116,8 +116,13 @@ let tests =
       let! (result: ModelContextProtocol.Protocol.CallToolResult) =
         tools.send_fsharp_code("test", "let structuredTestValue = 99", "", "", "", 0, "")
 
+      let shown =
+        result.Content
+        |> Seq.choose (function :? ModelContextProtocol.Protocol.TextContentBlock as text -> Some text.Text | _ -> None)
+        |> String.concat "
+"
       (result.IsError.HasValue && result.IsError.Value)
-      |> Expect.isFalse "a clean eval must not be flagged IsError"
+      |> Expect.isFalse (sprintf "a clean eval must not be flagged IsError; the tool returned: %s" shown)
       result.StructuredContent.HasValue
       |> Expect.isTrue "structured content must be attached"
       let root = result.StructuredContent.Value
