@@ -222,6 +222,8 @@ Placement: `CompilerOwnedEntries` is the current-graph ingredient shared by the 
 
 ### 6.6 Later tranches: Step 0 to Step 8
 
+**T1-B surface ruling, October 14.** The owner approves `FnPtr.ofExtern : 'F -> FnPtr<'F>` with the actual declared extern binding as operand, such as `FnPtr.ofExtern NativeLabs.Libc.labs`. Symbol strings, quotations and ordinary/captured functions supply no extern authority. Spec checkpoint `36f25b1` replaces §3.2, aligns §5.3 and the summary, and reconciles legacy examples with explicitly schematic declared-module references. The existing declaration, complete current ABI, actual link/loading contract and code lifetime remain prerequisites; behavioral hypotheses remain separate. The spec explicitly marks native conversion as not yet accepted. Growth from `e3f925c`: one existing file +33/−30, no new file, dependency or owner. This is the approved spec prelude, not Phase B or Step 1 closure and not a public-site deployment claim. Exact diff: Clef `artifacts/ffi-reconcile-20261013/t1b-ofextern-approved-spec.diff`; fresh114 schema→find→pgq→sources receipts are Bozzetto `nupkg/work-visibility/ofextern-spec-*`. One rejected over-limit hydration is retained separately from the successful bounded file/chunk results. Implementation continues through the existing source and native owners.
+
 Execution order: Step 0, Step 1 (T1-S, T1-A, then T1-B), Step 2, Step 3, Step 4 (4-D then 4), Step 6, Step 6-T, Step 5, Step 7, Step 8. Dependency graph: Phase B precedes Step 0; Step 0 precedes Step 1; Steps 2 and 3 depend only on Step 1; Step 4-D and Step 6 depend on Step 3; Steps 2, 3, 4 and 6 precede Step 6-T and Step 5; Steps 1 to 6 precede Step 7; Steps 3 to 7 precede Step 8; the Bozzetto track T1-D is independent. Entry conditions for Steps 2 to 8, none of which held on October 3 and each re-verified at entry: Phase B closed and pinned with the foundation; Step 0 landed; Step 1 and 1-B landed. All of Steps 2 to 8 are plan: no repository has changed for them and every gate named is unrun.
 
 | Step | Content | Gate and risks |
@@ -371,6 +373,52 @@ The owner's questions from that map: the next Baker construct (scalar calls, rea
 
 ### 11.1 Phase B, next
 
+**Q3 immutable source-call string origins, October 14 (bounded source tranche).** Clef checkpoint `03e45f6c7d951cf478a45425150ce5583fd5f884` extends the existing Baker string-origin reader to complete ordinary string-returning calls, preserving call identity, target/body/argument/formal participants and exact immutable UTF8 origins. Foreign declaration implementations, incomplete/unknown targets, unknown bodies and altered call shape refuse. The existing `StringOrigins` census is activated by callee-body evidence, retaining foreign classification as a negative dependency; adding that classification with unchanged nodes invalidates the old projection. The complete changed-owner `IntrinsicWriteCases` group passed 76/76 with zero skips (54s); disabling ordinary-call admission failed all three new shape cases, followed by an exact restore and successful producer. This is scoped xUnit/compiler evidence, not solver/Rocq certification or full Q3 acceptance. Test followup checkpoint `5ab7d68` adds the auditor-directed boundary controls. Sole Fable5.1/high review accepted the bounded source and followups (two one-read reviews); its final nonblocking forwarded-formal control was added and passed in the three-case matrix. The unchanged CCS DLL preserves the earlier 76-case gate; tests-only followups passed 3/3 without repeating that owner gate. Growth is three existing Clef files +122/-3, with no new tracked file, owner or dependency. Runtime allocation/lifetime, relational foreign result contracts and graph-owned `readln` remain open. Differential tracking remains explicit: current-revision participant/census validity is established here; D5 declaration/role/incarnation identity, proposition/premise/checker/lemma/descriptor validity and code-region consumed-proof reuse keys remain open. The conservative whole-graph census does not establish selective cross-revision reuse. Evidence: `clef/artifacts/ffi-reconcile-20261013/q3-call-string-handoff.md`, committed diff, source/DLL seals, TRX and mutation logs. LAN task outcomes and usability are recorded separately there. THREE reported a successful leased build after its existing PSG checkout was aligned from old `d35785d` to controller-accepted `46640282e89fb16e90a01d3c166b4e21b9bc77d1`; that LAN result is a worker report, while the local gates are directly executed evidence. Earlier missing-restore, aborted-preflight and old-PSG failures remain recorded. The persistent journal has nine native task runs: eight completed and one `turn_budget_exceeded`; these task states do not count compiler build passes or usable reading results. A completed agent task reporting a failed build is not a build pass. Retrieval generation89 was fresh for implementation; post-push schema reported `indexing_pending`, so this bounded standing-record update uses the explicit stale-index exception.
+
+**FFI descriptor ownership and callback hypotheses, October 14 (bounded source acceptance).** BAREWire `9c586c50d14264f0bc2ba798380e7ca589445e4e` appends `Transfer.Undeclared`, preserving CallerOwns/CalleeOwns/Borrowed tags0/1/2 and assigning3 to Undeclared. Farscape `53419aada5eeb38c87832c22f3596d239ec41f06` stops inventing Borrowed ownership for missing pilot/header/callback/GIR evidence. Clef `e843eac` adds44 passing consumer controls: scalar integer/Boolean values admit Undeclared, pointer/reference adapters retain their specific refusals, and a same-node ownership change invalidates retained evidence before renewal. Farscape `ce1fd5e65fdd5eea603fe46992d46a9ee71b548e` requires explicit nonnull evidence for callback parameters, refuses contradictory nullable evidence, and renders/validates namespace binding output before any file is written. Its205 selected controls pass; disabling the nonnull guard and withdrawing pilot nonnull support both fail their discriminating controls, followed by exact restoration. The four-tag reflection mutation also fails and restores. Sole native Fable5.1/high accepted these bounded source changes; no broad regression was earned. Farscape binaries include the unchanged pre-existing ProtocolParser patch, so their binding is head plus that patch, not clean-head-only. Growth: BAREWire one existing file +2/−0; Clef one existing test file +71/−1; Farscape ownership four existing files +50/−4 and nonnull seven existing files +167/−70; new tracked files, owners and dependencies0. Evidence: Farscape `artifacts/ffi-contract-20261013/{handoff.md,nonnull-handoff.md,nonnull-final-binding.sha256}`, BAREWire `artifacts/ffi-contract-20261013/tags-followup.md`, Clef `artifacts/ffi-reconcile-20261013/{undeclared-consumer-handoff.md,fable-ffi-ownership-provider-01-return.md,fable-ffi-nonnull-01-return.md}`. Real binding regeneration, callback/typed-protocol pre-output controls, lifetime adapters and durable differential claim identity remain open. These tests and audits establish neither foreign behavior nor solver/Rocq certificates. Retrieval uses fresh/latest generation94 `b813a553c95c642d67bf451f33a8b1d3e7b797d980f7aa85c5c760d7e0db23eb`; earlier explicitly stale confirmations and dirty diffs are recorded in the handoffs.
+
+**Workstation Composer provider restored, October 14 (host delivery only).** The old installed host and worker disagreed on the embedded PSG fingerprint. Release `20261013-current-composer-pair` rebuilds and installs the current matching pair. All326 installed payload hashes match the reviewed stage; four focused binary-authority controls pass. A real ExternCall `.fidproj` open produced a visible session and running compiler worker through pushed bridge events and the existing Solid store. Its build reports the three existing CMemory CCS8706 failures, with no accepted artifact or native execution claim. The owner subsequently closed that session; session counts are current provider state, not historical build totals. The workstation controls cover its local Composer process; per-node Work observations also include the workstation, and a leased command-line build is not a Composer session. LAN hosts retain their previously installed worker payloads. The next PSG change must rebuild/re-fingerprint the pair against current BAREWire before another current-closure claim. Evidence: Bozzetto `nupkg/work-visibility/{worker-alignment-handoff.md,worker-alignment-real-page.json,worker-alignment-after-build-page.json}` and the adjacent source, installed-hash and event receipts. No UI polling or invented sessions were added.
+
+**Runtime byte-borrow write, October 14 (bounded source and public-reader acceptance).** Clef `39eda3bcc3bd2bfa3b15241fed5a1b7539b657d9` extends the existing StringBorrows, Memory and Boundary owners for an immutable runtime `FromBytes` string consumed by `Sys.write` in the same lexical activation. Scheduled renewal after byte/array construction restores exact terminal, extent, copy and allocation bindings; it does not re-enter compilation. Runtime writes require the actual admitted snapshot, equal copy/allocation counts and a singleton count range. They acquire no invented NUL terminator. Fidelity.PSG `af30850957cc394b7374b2d5b121ab8a6b538546` checks the independently published write rows, including withdrawal of their byte view or allocation. Composer `3e84671abe0c312f13d1bfd983ba41aa138592e9` aligns its fixture with the typed fields. The shared contract is PSG schema24, format2, fingerprint `C4173B18C986F94D63435615CCCE2742E8835BE9E6812343C458BEE93219FDBA`. Runtime controls passed18/18; affected string/write consumers passed146/146. Renewal and public-reader mutations failed their specific controls and exact restorations passed. Sole Fable5.1/high accepted this source tranche and its public-reader followups; no broad regression was earned. Growth: Clef eleven existing files +533/−34, PSG typed migration six existing files +30/−26 plus one existing integrity file +18/−0, Composer one existing fixture +2/−2; new tracked files, owners and dependencies0. Evidence: Clef `artifacts/ffi-reconcile-20261013/{runtime-write-handoff.md,runtime-write-committed-blobs.txt,fable-runtime-write-01-return.md,fable-runtime-tail-01-return.md}` and PSG `artifacts/runtime-borrow-checkpoint/`. These are compiler/test/audit results, not solver certificates or Rocq proofs. Dynamic extents, escaping storage, durable D5 claim identity and consumed-proof reuse keys remain open.
+
+**Farscape real-header and platform-manifest reconciliation, October 14 (bounded generator acceptance).** Farscape `7abee7d9234e2ff5b618af08ef28ee4052a39242` retains full native prototype matching while canonicalizing trailing parameter `restrict`, accounts for empty native nonnull attributes at pointer parameter positions, and captures explicitly selected platform dependency/description once before generation. Descriptor-only output preserves that selection; the dotted `Fidelity.Platform` dependency key is quoted in the existing TOML `.fidproj` format. Missing selection grants no inferred platform authority. Malformed selected TOML or description refuses before output. The real pthread pilot/header closure regenerated seven files; the compiler's remaining reachable error is the existing CCS8416/L3 refusal for an exported native entry. Platform register and immutable-program-space refusals were resolved by explicit declarations. Focused parser controls passed227 cases; the final platform matrix passed9/9, with selection, key-quoting and description mutations caught and exactly restored. Sole Fable5.1/high accepted the bounded generator increments. The unchanged pre-existing ProtocolParser patch remains part of the binary binding. Evidence: Farscape `artifacts/ffi-contract-20261013/{platform-handoff.md,platform-description-final-binding.sha256,pthread-real/}` and Clef `artifacts/ffi-reconcile-20261013/fable-ffi-platform-01-return.md`. Typed-protocol XML validation before any whole-project write is the next generator increment; library rooting still grants no host loading contract.
+
+**Typed-protocol XML output staging, October 14 (bounded generator acceptance).** Farscape `b3550fb45a1fecc542a5ba637b977f90cf0cd310` extends the existing TypedProtocolGenerator with pure complete rendering and retained emission. BindingGenerator renders that projection before its first shared-types, errno or namespace write. The five focused controls pass; moving rendering after namespace writes makes both whole-project refusal controls overwrite their sentinel and fail. Sole Fable5.1/high accepts TP-XML and the earlier process-wide environment isolation and implicit-sibling followups. Tests-only checkpoint `e7af1883d814a3ab8a7551648d87dab726fa2bfa` adds the auditor's nonblocking constructor-string/errno control; it passes1/1 without repeating the accepted gates. Growth from7abee to e7af: four existing files +104/−12, no new tracked files, dependencies or semantic owner. Evidence: Farscape `artifacts/ffi-contract-20261013/{tp-xml-handoff.md,tp-xml-final-binding.sha256,tp-errno-final-binding.sha256}` and Clef `artifacts/ffi-reconcile-20261013/fable-ffi-tp-xml-01-return.md`. Generic IO-failure atomicity and host loading authority are not claimed.
+
+**Current runtime pair delivered; native gate in progress, October 14.** Release `20261013-runtime-borrow-pair` installs the accepted current closure on the workstation. All326 payload hashes match the reviewed stage; actual Hello confirms Composer `52D094F3286EDCFDF69BCC0C6FAB076EF87A310547C34EF376B5DDDC34D8C528`, PSG schema24 and the matching binary protocol. Four focused provider controls pass with `NarrowedRun`, and sole Fable accepts the staged pair. A fresh RuntimeSnapshotWrite session opens. Its first native build refuses because the explicitly selected freestanding profile has no admitted diagnostic-and-termination realization for a required assertion. Selecting the existing explicit Linux AMD64 libc console profile resolves that refusal without altering the program byte source, widths or memory/write contracts. The next build lowers the real global byte array, stack snapshot, index cell and guarded copy loop, then refuses unsupported artifact memory residence/initialization. No artifact or native execution is accepted yet. The existing ArtifactProof/EnvironmentArtifacts/EnvironmentLLVM owners are being extended for that exact runtime chain; instruction-equivalence and fictitious ELF stack addresses are excluded from its proof claims. Evidence: Bozzetto `nupkg/work-visibility/{runtime-borrow-pair-handoff.md,runtime-borrow-pair-promotion.md}` and Clef `artifacts/ffi-reconcile-20261013/native-runtime-write/{open.json,build.json,build-libc.json,acceptance-charter.md,refused-artifact-memory/}`. Source gate binaries and committed-closure deployment binaries have separate seals and a source bridge; they are not claimed byte-identical. LAN compiler payloads remain separately versioned. THREE's updated public-PSG build has independently checked durable exit0 and complete stdout (`three-public-build-assessment.md`), while earlier task-budget and project-path failures remain recorded. ONE's first range-locator report used an obsolete local BAREWire head while retrieval was unavailable and is not accepted current-source evidence; its core primary checkouts were subsequently fast-forwarded to the accepted closure. Task completion, successful builds and usable source evidence remain separate outcomes.
+
+**Native snapshot artifact realization, October 14 (focused checks passed; audit blocker open).** The existing Composer artifact, LLVM observation and immutable-storage owners now account for the complete byte-global, stack snapshot, local index, guarded copy and write chain. Twenty focused source/LLVM/object controls pass; nine ELF source-account controls passed on their separately sealed earlier producer. Guard, byte-equality and private-linkage mutations were caught and restored byte-exactly. The frozen producer is `110e8093e8d2d2d3a026a80440e96fa70a1e683f35d7b57c10178bcbe761d5c1`; the complete326-file stage is independently verified and changes only Composer.dll and its PDB. Growth: ten existing files +1445/−61, no new tracked file, dependency or owner. Sole native Fable5.1/high rejects stage readiness for one projection defect: the Rocq order proposition compares instruction ordinals with basic-block ordinals. The structural checker keeps those domains distinct; the proposition must transcribe only its checked same-domain facts. A focused rendered-Rocq failure/pass control is required before the same reviewer accepts the correction. No broad regression is earned. The timed-out first review returned no verdict; the same native context resumed and returned the rejection. No staged deployment, linked ELF/Rocq acceptance or native execution is claimed. The old owned session was closed and its compiler physically retired, with no active/queued leases. Evidence: Clef `artifacts/ffi-reconcile-20261013/{fable-native-snapshot-02-return.md,native-runtime-write/retention-handoff.md,native-runtime-write/native-source-final.sha256}` and Bozzetto `nupkg/work-visibility/native-snapshot-stage-handoff.md`. Receipt scope remains finite structural correspondence under explicit LLVM/linker assumptions, not instruction equivalence; D5 durable claim provenance and consumed-proof reuse remain open. Retrieval for this record uses fresh/latest generation103 `dd32b462913a68f3f403ecc822b96845ed48ca9a2327abdee0c00aaf07b733ba`, schema→find→pgq→sources and bounded confirmation of the located record; dirty source diffs and primary scratch artifacts are explicit direct-read exceptions.
+
+**Native snapshot capability accepted, October 14.** Composer `a1e33bdd5a0fb7b497fdeee1b98c32bacd41ce25` is committed and pushed; all ten committed blobs match the accepted source seals. Growth: ten existing files +1464/−61, no new tracked file, dependency or owner. The preceding Rocq projection blocker is resolved: the actual-renderer control fails on frozen110e at `13 < 9` and passes on corrected compiler `884C849DC113FF3CFC051D2F27D692A5881D561BF6B13A59EA768E064A791643` with instruction-only order `13 < 29 /\ 29 < 40 /\ 40 < 41`. Fable03 accepts that two-file correction; it earns no baseline repeat. Release `20261014-native-snapshot-artifact-pair` is installed and healthy, all326 payload hashes verified, only Composer.dll and its PDB changed, and the previous release retained. Fresh actual Hello confirms schema24/C417 and the matching protocol.
+
+The sealed Linux AMD64 libc console fixture builds successfully through Composer and publishes ELF `658E9C409E327DB56FED97DED85BB50B4D2EEB82AC9443018E1AAE9F56879F17`. Its actual `elf-rocq` receipt binds the immutable byte source, stack snapshot, index cell, guarded complete copy and readonly write. Source and MLIR checks each return82 `unsat` outcomes; these remain solver-dependent, without an Alethe certificate. Rocq9.1.1 compiles18 finite arithmetic/order/section theorems, each closed under the global context. Root independently verifies eight receipt/input/object hashes and retains the complete21-file native evidence seal. `composer_run_current` revalidates and executes the artifact: exit0, stdout exactly C3 A9 (two bytes, no newline or terminator), stderr0. Sole Fable04 accepts this bounded capability; no full regression is earned. Evidence: Clef `artifacts/ffi-reconcile-20261013/{fable-native-snapshot-03-return.md,fable-native-snapshot-04-return.md,native-runtime-write/native-snapshot-committed-binding.json,native-runtime-write/native-accepted.sha256,native-runtime-write/native-proof-root-binding.json,native-runtime-write/native-output-root-acceptance.json}` and Bozzetto `nupkg/work-visibility/ordinal-promotion-handoff.md`. LLVM/backend/linker correspondence remains an explicit trusted assumption, not an instruction-equivalence theorem. Current invocation anchors supply no D5 incarnation, durable proof history or cross-revision reuse. Mixed pool/snapshot families, dynamic counts, escapes, other platforms, relational foreign results and Step7 host loading remain open. ONE's independent checkpoint task reports NETSDK1004 missing restored assets and substitutes unrelated files for the required dependency-head checks; it is retained as unusable acceptance evidence in `native-runtime-write/one-checkpoint-assessment.md`, not a passed build or a compiler regression.
+
+**Next FFI proof tranche: relational foreign results (grounded design, not implementation acceptance).** Preserve BAREWire's five-field ABI FunctionDescriptor. A sibling quoted result-behavior declaration in the existing Bindings owner identifies the full Clef extern declaration and return role, with constant/argument-ordinal endpoints and explicit external-hypothesis identity, source and version. It states a foreign execution promise; it proves no foreign implementation. Baker's existing BoundaryDeclarations owner must resolve that exact declaration, refuse ambiguous/duplicate contracts and validate argument arity and scalar value roles. Existing RangeAnalysis must instantiate the relation with actual arguments in the current invocation context; missing contracts or unavailable argument support remain `Pending`, and a foreign placeholder body or ABI width supplies no behavioral default. Typed hypothesis and per-call support accounts must reach the existing public Boundary/Numeric projections and obligation body before they can justify narrower representation. Source, declaration/formals, ABI quotation, call/argument incidence and hypothesis census are all validity dependencies. The physical ABI-to-Clef conversion remains a separate obligation at the selected target's width.
+
+The existing Clef ObligationDischarge ledger distinguishes pending/unavailable from ready-to-project; ready is not solver discharge. Composer ProofDispatch already binds current-revision source/MLIR receipts to query/input hashes and checker identities and performs no persistent reuse. Extend that existing receipt owner for conditional foreign obligations: premises alone must return `sat`, then premises plus the negated claim must return `unsat`. Record both outcomes; inconsistent premises refuse as vacuous, a satisfiable counterexample refutes, and missing evidence remains pending. Existing unconditional finite bodies need no fabricated foreign premises. Graph range inference and ordinary branch facts supply coverage; no predicates are added to ordinary types. Descriptor/premise/checker changes invalidate dependent discharges and any representation that consumed them. Durable declaration/role/incarnation provenance, tombstones and cross-restart reuse remain D5/seam6 work; current node IDs and invocation receipts establish none of that. Planned focused controls cover two call counts, missing support, malformed associations, changed/withdrawn hypotheses, contradictory premises, an EOF counterexample and separate ABI narrowing. Grounding: fresh/latest generation102 `b66781fcb30e2a8d27c2d51e7675bf91c18247c87b34670879445ccbe5edd237`; exact owners and retained retrieval spans are in Farscape `artifacts/ffi-contract-20261013/relational-result-proposal.md`. No dependency closure has changed for this design preparation.
+
+Premise satisfiability is necessary but does not establish domain completeness. The conditional claim must also prove `lower(actuals) <= upper(actuals)` for every tuple in the inferred reachable argument domain. A contract with lower bound `count`, upper bound5 and reachable `count`0..10 has feasible tuples and infeasible tuples; one `sat` premise query cannot hide the latter. The result enclosure and destination capacity are conclusions checked against that domain and the declared relation, never premises obtained by asserting the enclosure being justified. The shared mathematical model owns this predicate; source SMT-LIB and the typed SMT projection transcribe it. Foreign behavior remains an external hypothesis, while ordinary branch and allocation facts retain their graph-derived status.
+
+**Completeness in the proof roadmap, October 14.** This FFI acceptance requires a complete source census of the logical-coverage and ABI-narrowing claims for each supported foreign call/context, including unavailable claims retained as `Pending`; coverage of every tuple in the graph-inferred reachable argument domain; satisfiable premises before discharge; matching source/MLIR evidence for the current claims; and an exact account of the proofs consumed by a code region. Erasing both a published account and its claims must still fail the independent source census. The owner's updated Composer Proof Roadmap states the every-input and complete-dependency requirements. Its Phase1 premise sources additionally need foreign behavioral contracts identified as external execution hypotheses, and its single-`unsat` explanation is subject to the nonvacuity and domain-completeness checks above. These are acceptance requirements for the bounded FFI family, not a claim that every arithmetic node, lowering pass or native artifact already has a complete proof. General node coverage, durable D5 provenance, checked certificates and higher-tier adequacy remain separately open.
+
+**Relational foreign-result component checkpoint, October 14 (interim gate).** Accepted and pushed: BAREWire `beaf8211`, Farscape `3481dd1f`, Fidelity.PSG `a2b1eb07`, Clef `0a97c8da`, Alex `3c0102ff`, Composer `2e82487c`. The existing owners implement optional constant/argument-relative result hypotheses, exact declaration association, per-application inference, complete source/public claim accounts, a shared totality/coverage predicate, SAT-premise then UNSAT-conclusion dispatch, and consumed-proof validity in the existing Common object key. Missing authority remains `Pending`; foreign bodies grant no inferred behavior, effects or loading authority. Source identity is distinct from validity, but durable declaration incarnation and cross-restart evidence reuse remain open. Compiler checks, scoped tests and audits supply no solver certificate or new Rocq theorem. Source23 plus L3, ledger4, public provenance10, canonical math14 and coupling10 have separately sealed scoped evidence and discriminating mutations; overlapping groups are not summed into a full-suite total. Two audit followups pass: rowless foreign predicate opacity and infeasible actual count10 with lower=count/upper5. The latter's actual source-premises query returns `unsat` under pinned cvc5, correctly classified as vacuous rather than discharged. The sole predicate-guard mutant survives; RRC-PREDICATE-MUTATION remains non-discriminating, with no kill credited. Fable03/04 accept the bounded component and package scope; no wider regression is earned. Growth, all committed blob hashes and no-new-tracked-file controls are in `clef/artifacts/ffi-reconcile-20261013/relational-committed-source-bridge.json`.
+
+The matching326-file schema25/format2/CF3D05 pair is installed on the workstation with the old schema24 release retained. The four focused provider controls pass with `NarrowedRun`; actual fresh open/Hello reports Composer95ef, PSG477a and AgreementF641, while the full installed manifest independently binds CCS892a. Farscape's first real-header attempt exposed a stale ReleaseCLI generator; rebuilding its existing distribution regenerates actual LP64 libc `labs` declarations with Signed64 ABI and the supplied result hypothesis, without inventing a platform dependency. The real console build then refuses before artifact acceptance because its public obligations name support nodes not held by the published revision. RRC-NATIVE-RETENTION is open at the existing Baker/publication seam; no schema25 native execution or actual object-cache reuse is claimed. Evidence: `clef/artifacts/ffi-reconcile-20261013/{foreign-result-proof/consolidated-final-handoff.md,foreign-result-followup/handoff.md,relational-audit/relational-04-return.md,native-labs/cli-regeneration-handoff.md,native-labs/build1.json}` and Bozzetto `nupkg/work-visibility/relational-result-{pair-handoff.md,provider-handoff.md,installed-verification.txt}`. Retrieval108 is fresh/latest/equal after the source checkpoints; earlier indexing-pending receipts, dirty diffs and primary scratch/artifact reads remain separately graded.
+
+**Relational foreign-result native realization and editor alignment, October 14.** The preceding RRC-NATIVE-RETENTION refusal is resolved in the existing public PSG integrity owner, not by adding graph retention or changing Baker's pass architecture. ForeignResultCoverage now has case-specific support roles; each hypothesis, ABI fact and selected destination is checked against its own owning account. Ordinary body references retain their existing rule. Four initial controls plus six corrected controls, the quote-omission mutation and the rejected-producer discriminators are separately bound; Fable07 accepts the correction. Fidelity.PSG `64f57f5` and Clef `11363c6` are pushed. Growth since the preceding component checkpoint: PSG three existing files +96/−5; Clef one existing test file +247/−0; no new tracked file, owner or dependency. Evidence: `clef/artifacts/ffi-reconcile-20261013/native-labs/public-role-correction-handoff.md` and `relational-audit/relational-07-return.md`.
+
+Composer `c38e239` aligns the active CCS.Editor/Lattice.Server consumer with the compiler-owned conditional proof facts: unavailable premises stay Pending, satisfiable premises precede the conclusion check, inconsistent premises remain vacuous, and successful checks are explicitly qualified by the stated hypotheses. Conditional results bypass the ordinary query-only cache. The thirteen scoped control/lifetime checks and discriminating premise-bypass mutation pass after exact restoration; Fable's editor01 review accepts this scope. The retired Clef AutoComplete fork is not a second active editor owner. The later receipt-only Composer `c8410ec` projects the existing typed source-premise receipts into the linked artifact receipt; its two controls pass, omission mutation fails both, and Fable08 accepts without a wider gate. Combined Composer growth since `2e82487c`: nine existing files +590/−101, no new tracked file, owner or dependency. Evidence: Composer `artifacts/ffi-editor-20261014/{handoff.md,retrieval-workflow-erratum.md}` and Clef `native-labs/premise-receipt-handoff.md`. The editor consumer source is accepted; this does not claim a separately deployed IDE client gate.
+
+Release `20261014-conditional-premise-pair` is installed after zero active/queued leases and physical retirement of the owned compiler. Its complete326-file manifest matches the reviewed stage; actual Hello confirms Composer e259, CCS892a, PSG4a/schema25/CF3D05 and protocol F641, with the preceding release retained. A fresh NativeLabs build publishes ELF `AD879C92AF933E8E6710D3B624A328E9B5A9B2286024CC87B22BE4135AAC4540`; `composer_run_current` revalidates and runs it with exit0 and empty stdout/stderr. LLVM calls `labs(i64 5)` and truncates the ABI result to the inferred i8 value. This is actual64→8 conversion under the supplied `0..argument0` hypothesis, with separate logical coverage and ABI narrowing obligations. The saved artifact receipt contains two actual premises-only SAT checks paired one-to-one with their source/MLIR UNSAT conclusions under fresh invocation `a8ed8567-82e4-4f6a-a7ee-7d41abe2a98d`; source and MLIR each contain23 UNSAT outcomes. Root independently checks invocation, anchors, query hashes, ELF bytes and execution, and seals `native-labs/accepted-native3.sha256` (relative to the Clef primary checkout). Historical failed/native2 receipts are preserved. These are solver-dependent results without Alethe certificates; the finite Rocq section theorems do not prove the foreign result width or libc behavior. Current Common proof consumption is recorded but Reusable=false: no D5 incarnation, persistent proof reuse or object-cache hit is claimed. RRC-PREDICATE-MUTATION remains non-discriminating. The earlier sentence excluding native execution is historical at its own checkpoint, not a denial of these bounded accepted native fixtures.
+
+Sole Fable09 accepts the fresh native binding as a root-executed report consistent with the earlier accepted implementation; it performs no independent solver rerun and earns no wider gate. `native-labs/native3-final-binding-summary.json` additionally projects the actual deployed PSG identity, premise stages and shared invocation requested in its non-blocking note. The earlier reviewed summary remains unchanged.
+
+**N4 Assign reader controls accepted, October 14.** Alex `2dd724e` adds a stated public Assign fixture that passes `Integrity.check` and the existing RecordWitness handler, three exact aggregate/field/value mismatch refusals, and an integrity-valid native Assign case that returns AX4002 at the actual write with no emitted operations or bound result. Five controls pass, zero skipped; removing only the existing Assign handler (X1) fails the positive with the expected unwitnessed-value reason, and exact source/DLL restoration passes that control. Three fixture-authoring failures remain in the logs; no production repair is claimed. Sole Fable `reader-01` accepts the bounded controls and earns no wider gate. Growth: one existing test file +163/−0, no new file, owner or dependency; production Alex479 and the independently frozen test PSG4a are unchanged. This closes N4's reader-control gap, not source-program/native assignment admission or the separately ongoing N2/N3 binding rules. Evidence: Alex `artifacts/ffi-aggregate-n4/{handoff.md,final.diff,final.sha256}` and Clef `artifacts/ffi-reconcile-20261013/relational-audit/reader-01-return.md`. Root independently verifies the final seal; no accepted baseline is repeated.
+
+**N2/N3 reader binding accepted, October 14.** Fidelity.PSG `ded2d9a` extends its existing passive integrity owner: every tagged Construct names its actual constructor even for absent/inactive payloads; Project names the exact live projection subject/path and the unique same-slot supplying Construct and actual callable, retaining alternatives, selector, placement and semantic tag fields. Aliases keep their source subject; TagRead is not equated with construction observation. Clef `6958ed1` adds actual source/public controls. The owner four-case matrix passes; the real record and present-union controls pass, and coherent supplier withdrawal yields the specific I5 with no I6 mismatch. Separate guard omissions kill the two constructor controls and the two subject plus one independent actual-source supplier control. Exact normal source/core38cc and test copies are restored; owner4 and sourceSupplier1 pass again. Sole Fable `reader-02` accepts; no wider gate is earned. Root verifies seals, actual sources/core/consumers, and all three committed blobs. Growth: PSG two existing files +369/−12; Clef one existing test file +173/−0; no new file, owner, dependency, public field, schema or wire change. These are scoped compiler checks, not solver/Rocq proofs or native admission. The serving e259/PSG4a pair remains unchanged. Evidence: Clef `artifacts/ffi-reconcile-20261013/{n2-n3-handoff.md,n2-n3-final.sha256,n2-n3-committed-binding.json,n3-controls/handoff.md,relational-audit/reader-02-return.md}`. **N3-SOURCE-INACTIVITY remains open:** the added Error/default source route is located CCS8414, requiring source inactivity evidence; its failed positive and amended exact-refusal control are preserved separately, with no admitted fallback revision claimed. Tuple projection gets a source control when that shape enters scope; no unearned gate or universal source-coverage claim is made.
+
+For this update, the fresh/latest/equal retrieval112 snapshot `dedbb6b290fff01695e9c8c07681a4f3b636c73954d2637917a5b3ee54e33d01` became explicitly `indexing_pending` after the authorized Composer receipt checkpoint was pushed. The stale receipt, retained located spans, dirty documentation diff and primary scratch/artifact reads are recorded exceptions; no repository-wide scan substitutes for retrieval. The referenced one-page template path is absent in this checkout; the existing bounded handoffs retain its required identity, growth, controls, gate and residual fields.
+
 1. Q2, then Q4 (owner yes or no), then Q3, each spec-first (sections 5 and 7); the owner's review of 9947c9e and 5983f0e.
 2. The Q1 residuals: the escaping-parameter negative control; a genuine differing-vector negative for returned-call vectors.
 3. The Composer baseline failure (CCS8414, R4 arm inactivity) and the scalar `Empty` inactivity proof; RC1's unused-binding reason.
@@ -424,12 +472,12 @@ history. These are the current closure groups, not a second requirements owner:
 | Capability boundary | Current accepted scope and remaining closure |
 | --- | --- |
 | Portable fat pointers and flat closures | Callable rows and several Phase B source-demand/readiness increments are accepted in bounded scopes. Reader binding, formation/lifetime and native reconstruction controls remain in §§6 and11. |
-| Native entry and foreign invocation | ABI, loading, address and execution authority remain separate open tranches. Source rooting or a portable callable row grants none of them. |
+| Native entry and foreign invocation | Explicit Linux AMD64 libc write/snapshot and relational labs fixtures have bounded accepted native realization. General ABI, host loading, address and execution authority remain separate open tranches. Source rooting or a portable callable row grants none of them. |
 | Aggregate and scalar marshaling | Existing source/receipt controls are credited; native aggregate/Assign readers, target conversions and required lifetime/ownership evidence remain open. |
 | Runtime string/byte borrows | Q3 samples18–23 retain explicit borrow/residence/lifetime refusals. The next slice extends existing source owners with complete evidence; it does not admit a borrow by suppressing its refusal. |
 | Binding generation and regeneration | Farscape and BAREWire vocabulary, descriptor provenance, pilot/annotation refusals and Fidelity.Platform regeneration require coordinated acceptance. Legacy desktop bindings retain their existing freeze. C++ template mapping through BAREWire is a later scoped row, with no delivery claimed. |
 | Differential claim and artifact reuse | D5 stable provenance, validity keys, consumed-proof dependencies and restart policy remain open. Accepted current-pipeline NodeId checks are not durable discharge reuse. |
-| Design-time consumers | Lattice, Clef Auto Complete and other affected tooling require a consumer-impact entry and bound checks for changed contracts. Their alignment is currently unverified, not implied by compiler acceptance. |
+| Design-time consumers | Active CCS.Editor/Lattice.Server conditional result-proof alignment is accepted at Composer c38e239 with bound controls; the Clef AutoComplete reference fork is retired. Separate deployed IDE-client acceptance and other affected consumers remain unverified. |
 
 Each closing increment records requirement IDs, accepted scope, source/artifact
 binding, proof tier and residuals, affected consumer heads, and its acceptance
@@ -453,6 +501,209 @@ can require renewal while graph claims remain valid. Tier2 evidence needs a Rocq
 form when it becomes a premise of a Tier3/4 lemma; no general Rocq projection is
 claimed for the current FFI slice. These obligations specify the existing
 proof/differential design, without developer-written refinement predicates.
+
+#### T1-B declared extern entry loading and differential dependencies (October 14)
+
+The owner approved `FnPtr.ofExtern : 'F -> FnPtr<'F>` with the actual declared
+extern binding as its operand; spec source `36f25b1` carries that ruling. The
+entry retains its exact import, declaration, ABI and pointer transport in the
+existing boundary account. It obtains no ordinary compiler-owned lifetime and
+executes no foreign placeholder. The first realization is an immutable local
+entry; module-level entry storage remains a separately refused residual.
+
+The selected platform explicitly names a sibling process-link contract through
+`[platform].loading`. BAREWire owns its eleven-field vocabulary; Fidelity.Platform
+supplies the Linux AMD64 libc declaration. Identity, version and source identify
+the stated loading assumption. Its initial supported policy is library `c`,
+runtime `libc`, Linux `x86_64`, process startup through process termination, with
+unloading and exported-library residence forbidden. Runtime availability alone
+supplies no loading contract. The source platform reader owns selection and
+provenance; boundary admission owns the entry; Composer checks the retained
+account against the actual executable and libc link recipe. L3 remains in force.
+
+Loading and arithmetic evidence have different validity dependencies. The
+existing Common region fingerprint structurally includes the boundary account,
+including the complete selected loading contract. The existing object key also
+includes that fingerprint and the actual target, link and tool recipe. Thus a
+loading-contract change invalidates the dependent code through its existing
+owner. An arithmetic discharge depends on its actual behavioral descriptor,
+ABI and destination premises; a loading change need not change that mathematical
+claim. This is code-read evidence, not a demonstrated cache-reuse result. D5
+provenance, tombstones and persisted evidence reuse remain open; current
+fresh-only restrictions remain in force.
+
+Code-read binding: Clef `6958ed15`,
+`src/Compiler/PSGSaturation/SemanticGraph/WitnessSegmentation.fs:57–96,411–423`;
+Composer `c8410eca`, `src/BackEnd/LLVM/IncrementalRegions.fs:53–72,130–178`
+and `src/Core/WitnessArtifacts.fs:165–333`. The bounded report and seal are in
+Composer `artifacts/ffi-native-functionpointer-20261014/reuse-report.md` and
+`reuse-final.sha256`. Retrieval118 `1cfd21c6…` was fresh/latest/equal with pinned
+schema→find→pgq→sources; dirty type-field drafts remain separate from those heads.
+
+Implementation and focused controls are in progress. Alex's sealed consumer
+packet is `artifacts/ffi-t1b-20261014/handoff.md`; source admission, semantic PSG
+integrity, backend validation and the actual native artifact remain required
+before capability acceptance. Schema26 type-shape production is not semantic
+acceptance. No complete T1-B, Phase B or FFI closure is claimed here.
+
+**Relation authority (Lava comparison, October 14).** Foreign behavioral
+contracts and inferred ranges establish only inclusion: every actual result,
+under the stated hypotheses, belongs to the described relation. They establish
+neither a biconditional with the computation nor functionhood. Two calls with
+equal arguments retain distinct application/result evidence; shared descriptors
+or entry addresses supply no result equality. A proved functionhood lemma may
+be used only with its explicit domain, effect/context premises and validity pins.
+The Lava comparison is research guidance, not a new compiler authority.
+
+The FFI consequences are explicit ABI/representation conversions and their
+obligations, opaque foreign implementations, and hypothesis provenance kept
+distinct from proved premises. A branch's range narrowing is a graph fact with
+support; it does not itself require a runtime cast. No source refinement
+predicates or dependent evidence pairs are introduced. Dimensional/parametric
+typing supplies Tier1 guarantees; numeric bounds and actual target widths remain
+separate. SMT integer arithmetic is not a replacement for the selected machine
+representation or its conversion/overflow obligation.
+
+Emitter faithfulness, relation/coherence lemmas for quoted Tier3 functions,
+unfolding eligibility, and lemma conclusions consumed as Tier2 premises remain
+broader proof-roadmap work. Such proved premises must retain their lemma identity,
+premises and checker/library pins in validity keys. cvc5 remains the Tier2 owner;
+Rocq projection is required when higher-tier proof consumes the fact. Generated
+proof checking and metatheoretic preservation are separate from empirical
+automation coverage. Current compiler tests, audits and execution receipts prove
+none of that broader completeness or translation-faithfulness theorem. Research
+source: arxiv-papers `c24c9169`,
+`research/DBC/Lava_Haskell_2610.14092v1.pdf`, §§3.3.2,E.1 (pp.14–15,42–43).
+This repository is outside retrieval119's published sources; the bounded local
+PDF read is the recorded exception. Detailed paper review is delegated by the
+owner separately and is not a prerequisite to the current FFI gate.
+
+**Information-geometry consequence (October14).** The paper
+[Compositional Information Geometry of Probabilistic Programs](https://arxiv.org/html/2610.17886v1#S1)
+shows that equal output distributions need not preserve trace geometry. The FFI
+design consequence is to preserve distinct call occurrences and require explicit
+effect/context evidence for any identification. A range descriptor supplies no
+probability law, derivative or geometric-preservation theorem. If future proofs
+consume such observations, their contracts and support must join the existing
+validity/dependency account; unchanged bounds alone cannot justify reuse. This is
+a design inference, with geometric optimization outside this FFI increment.
+Current equal-argument controls test distinct call evidence, not geometry.
+
+**T1-B scoped source/public/consumer acceptance.** Checkpoints pushed October14:
+BAREWire `c8587b9`, Fidelity.Platform `1f9a1b2`, PSG `4deb8dd`, Clef `d7ddea1`,
+Alex `443b343`, Composer `fda0374`. Root's
+`clef/artifacts/ffi-reconcile-20261013/t1b-committed-binding.json` matches every
+committed changed blob to its reviewed source and records per-repository
+shortstats; no new tracked files. Source8 controls, public11 controls plus the
+same9 stronger reason assertions, two existing schema/generator checks, Alex6
+controls and backend13/current3 controls are credited at their exact closures,
+not summed into a full suite. Seven independently compiled mutations were
+caught and sources/binaries restored exactly. The actual local publication
+has Entry1/Call1, Integrity0 and713953 encoded bytes; its uniquely retained
+restored snapshot and explicit overwritten-initial-snapshot bridge are bound.
+
+Native Fable5.1/high accepted with nonblocking follow-ups (`relational-audit/
+t1b-source-01-return.md`); ten reads, with source diff tail graded from reported
+execution evidence rather than direct source reading. No wider regression was
+earned. Mutable/captured alias refusal coverage, string-vocabulary refinement,
+coarse account support and repeated transfer-reader cost remain follow-ups.
+Module storage, L3/library loading, D5 and certificates remain open.
+
+LAN scoped builds completed on ONE (PSG), TWO (Alex) and THREE (Composer).
+THREE's first assignment remains failed: its primary Thuja dependency was absent.
+A separately named repair provisioned that already-declared dependency at
+`e1b855dd` on branch `fidelity`; the ensuing leased Composer build exited0 in
+12.22s with zero errors. All21 repair evidence hashes verify, and complete native
+stdout matches the worker's build-log hash. Original failure and new completion
+remain distinct in the existing SQLite job journal. Evidence:
+`t1b-lan/three-dependency-repair/handoff.md`. These are build receipts, not suite,
+proof or native-capability acceptance.
+
+The matched installed pair `20261014-declared-extern-pair` preserves the previous
+complete release for rollback; all326 files and actual schema26 Hello were
+verified. Its first native fixture build is **failed**, before artifact emission:
+the `ofExtern` declaration operand was traversed as an ordinary callable and
+demanded physical representation for signature participant882, causing AX4001
+child refusals. Fixing that exact source-only operand seam belongs to Alex; the
+accepted source/public gates do not grant native artifact acceptance. Exact
+receipt: `native-fnptr-ofextern/build-native1.json`. Runtime execution remains
+unperformed until an artifact is compiler-accepted through the current session.
+
+**T1-B native correction and realization.** Alex `3a6c278` extends the existing
+VarRefWitness with an exact, parent-bound admitted declaration-operand reading.
+It emits no closure/SSA for that metadata occurrence and retains ordinary
+callable refusals. Two specific controls pass; disabling only the classification
+reproduces formal882's refusal. Source/DLL/PDB/test restoration is byte-exact;
+the unfiltered CallableSymbolTests-only DLL passes11/11 (not the full Alex suite).
+Fable accepted the delta after two reads, with no wider regression earned.
+Growth:2existing Alex files+224; new tracked files/owners/dependencies0.
+
+The matched installed `20261014-declared-extern-operand-pair` verifies326files,
+schema26 and unchanged wire digest. The unchanged local fixture now compiles
+and `composer_run_current` exits0 with empty output. ELF `8F88A874…D5A5E` is
+retained with its full evidence in `native-fnptr-ofextern/accepted-native2`.
+Portable MLIR forms one `func.constant @labs`, invokes its actual pointer SSA,
+extends the argument8→64 and narrows the result64→8. LLVM canonicalizes the
+known constant to a direct call; that grants no foreign purity or result equality.
+Source24/MLIR24 solver queries are UNSAT; two premise queries are SAT. All
+artifact/query and Rocq source/object hashes verify. Existing ELF byte-accounting
+has40theorems, zero source Claims/Origins and24solver-only anchors: it does not
+prove foreign behavior or instruction-level semantic equivalence. The object
+manifest records two consumed proofs with descriptor hypothesis/version/source
+and distinct validity; one Common object compiled, zero reused. D5 remains open.
+Fable accepted native2 as root-verified reported binding evidence after two
+reads, with no blocking mismatch or wider regression earned. Root supplied its
+nonblocking Composer bridge: all15 reviewed source hashes match committed
+`fda0374`, whose producer4D979487 is byte-identical in the installed pair.
+Two premise anchors now match exactly to source/MLIR claim outcomes, recorded
+by anchor hash. These follow-ups are root-verified additions, not further auditor
+reads. Evidence: `native2-binding-summary.json`, `composer-postcommit-binding.json`
+and `native2-final.sha256`. Native1 remains recorded as failed. Local immutable
+declared-extern address/invoke is accepted at this explicit LinuxAMD64/libc scope;
+module storage, general ABI/loading and full FFI closure remain open.
+
+Spec `03e7846` synchronizes its informative implementation status with that
+accepted scope (1existingfile+1/−1); the public hybrid index still shows the old
+`fromSymbol` text, so deployed-site synchronization remains unverified. TWO
+fast-forwarded its primary Alex checkout to `3a6c278`; one leased Release build
+passed11.54s, zero warnings/errors. All18 distribution hashes verify; the other
+five reviewed heads and existing job history are preserved. This is distribution
+evidence, with no repeated suite (`t1b-lan/two-operand-update/handoff.md`).
+
+**Equal-argument native control (October14).** The same admitted entry is now
+invoked twice with argument5. Generation2 builds and `composer_run_current`
+exits0; portable MLIR retains two indirect calls and LLVM retains two calls to
+`labs(5)`. The manifest records four distinct consumed-proof identities and
+validities, with the shared descriptor explicitly retained as a hypothesis.
+Source38/MLIR38 queries are UNSAT and four premise queries are SAT; artifact,
+query and Rocq source/object hashes verify. This is an executed shape control,
+not a foreign functionhood theorem or geometric-preservation proof. No object
+reuse or D5 closure is claimed. Immutable evidence and inputs are sealed in
+`native-fnptr-ofextern/accepted-native3`, `accepted-native3-inputs` and
+`native3-final.sha256`; native2's original input bytes remain separately archived.
+
+**Private module-entry implementation contract (October14).** The next bounded
+tranche extends existing program storage with `NativeEntry`, referring to the
+original admitted formation. Selected Pointer layout supplies storage dimensions;
+it grants no loading authority. Source inventory precedes final Boundary admission,
+and public integrity binds initializer, entry, loading, layout and read incidence.
+Alex carries typed declaration/store/load operations over a pointer-sized byte
+view; it does not construct `memref<TFunc>`. Composer's existing structured
+target realizer consumes those exact storage/entry accounts before serialization,
+replacing reserved internal placeholders with LLVM pointer globals, stores and
+loads. Unmatched placeholders must refuse before linking. No symbol lookup,
+integer code-address conversion, pass re-entry or duplicate authority is added.
+Mutable/generic storage and exported-library L3 admission remain refused.
+
+A leased stock LLVM probe lowered and translated the typed bridge into an LLVM
+pointer global, `store ptr @labs`, `load ptr` and an indirect call, without an
+integer conversion (`Composer/artifacts/ffi-t1b-entry-storage/`). This establishes
+target legality only. The real private-module source/public snapshot reports
+Entry1/Calls2 and Integrity0; focused withdrawal controls and consumer realization
+are in progress. Schema27 production and these intermediate reports do not yet
+grant module native-capability acceptance. Existing source, public-model, Alex
+and Composer owners are being extended in parallel; Fable remains the sole
+increment reviewer after evidence is frozen.
 
 #### October 13 source-demand checkpoint
 
