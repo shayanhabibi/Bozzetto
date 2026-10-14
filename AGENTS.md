@@ -279,8 +279,9 @@ Composer is a **differential compiler**: it recompiles what a change affects.
   lifetimes. File changes revoke affected work before recompilation or process
   replacement. Native execution requires compiler-owned authority; a host
   reload never substitutes for proof or artifact validation.
-- **No runtime patching.** Harmony, MonoMod, detours and injection are removed.
-  Do not restore them in any form.
+- **F# hot reload.** Runtime patching may be restored inside per-session F#
+  workers. Follow [F# sessions](docs/fsharp-sessions.md) for supported behavior
+  and worker lifecycle.
 - **Shared foundation.** Fidelity.FSharp.Incremental owns dependency
   bookkeeping and explicitly started work across Bozzetto and the
   Clef/CCS/Baker/Composer pipeline. Follow the

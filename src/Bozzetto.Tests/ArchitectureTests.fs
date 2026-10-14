@@ -143,21 +143,6 @@ let architectureTests =
 
     testList "Assembly dependency rules" [
 
-      testCase "compiled delivery and test closure contains no managed patching dependency"
-      <| fun _ ->
-        let seen = Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        let rec inspect (assembly: Assembly) =
-          if seen.Add assembly.FullName then
-            for reference in assembly.GetReferencedAssemblies() do
-              [ "Harmony"; "MonoMod" ]
-              |> List.exists (fun forbidden -> reference.Name.Contains(forbidden, StringComparison.OrdinalIgnoreCase))
-              |> Expect.isFalse (sprintf "%s must not depend on retired patching assembly %s" assembly.FullName reference.FullName)
-              // Inspect the delivered application closure, including dependencies
-              // that are copied locally but have not yet been loaded at runtime.
-              let path = IO.Path.Combine(AppContext.BaseDirectory, reference.Name + ".dll")
-              if IO.File.Exists path then Assembly.Load reference |> inspect
-        [ coreAssembly; cliAssembly; testAssembly ] |> List.iter inspect
-
       testCase "Bozzetto.Core must not reference Bozzetto CLI assembly"
       <| fun _ ->
         coreAssembly

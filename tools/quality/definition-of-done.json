@@ -20,7 +20,7 @@
       "layer": "real-client-e2e",
       "client": "vscode",
       "status": "not-applicable",
-      "reason": "2026-10-01: managed runtime patching, its daemon endpoints, client commands and acceptance fixtures were removed. Historical receipts remain in git history; they do not establish a current Bozzetto capability. Future native replacement requires its own compiler authority and acceptance. See docs/Bozzetto_Clefx_Host_Transition_2026-10-01.md."
+      "reason": "2026-10-01: managed runtime patching, its daemon endpoints, client commands and acceptance fixtures were removed. F# sessions were subsequently restored; hot reload is permitted for worker back-porting but is not implemented. Historical receipts remain in git history and do not establish current hot-reload coverage. See docs/fsharp-sessions.md."
     },
     {
       "id": "HR-NVIM-E2E",
@@ -28,7 +28,7 @@
       "layer": "real-client-e2e",
       "client": "neovim",
       "status": "not-applicable",
-      "reason": "2026-10-01: managed runtime patching, its daemon endpoints, client commands and acceptance fixtures were removed. Historical receipts remain in git history; they do not establish a current Bozzetto capability. Future native replacement requires its own compiler authority and acceptance. See docs/Bozzetto_Clefx_Host_Transition_2026-10-01.md."
+      "reason": "2026-10-01: managed runtime patching, its daemon endpoints, client commands and acceptance fixtures were removed. F# sessions were subsequently restored; hot reload is permitted for worker back-porting but is not implemented. Historical receipts remain in git history and do not establish current hot-reload coverage. See docs/fsharp-sessions.md."
     },
     {
       "id": "LT-VSC-E2E",
@@ -54,7 +54,7 @@
         "attestedAt": "2026-09-04",
         "summary": "13/13 real-daemon journeys passing in sagefs.nvim at the pinned commit. ATTESTATION, NOT VERIFICATION: this repository cannot execute the plugin, so nothing here re-runs it."
       },
-      "reason": "2026-10-01: this row describes the retired embedded F# provider. F# hot reload and live testing are retired coverage, not a current Bozzetto capability; the inherited F# host code is retained but is not a product surface. Future Clef/ORC and heterogeneous HMR require their own compiler contracts and acceptance; the preserved historical evidence does not verify those capabilities. See docs/Bozzetto_Clefx_Host_Transition_2026-10-01.md."
+      "reason": "2026-10-01: this row describes the retired embedded F# provider. F# sessions were subsequently restored, while hot reload and live testing remain unimplemented. The preserved historical evidence does not verify those capabilities in the current workers. Future Clef/ORC and heterogeneous HMR require their own compiler contracts and acceptance. See docs/fsharp-sessions.md."
     },
     {
       "id": "FR-VSC-E2E",
