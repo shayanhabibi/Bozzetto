@@ -58,28 +58,32 @@ Bozzetto daemon (47749)
 
 ## Evidence
 
-Verified on Windows (2026-10-14) for `Bozzetto.Core`, `Bozzetto.Host` and the
-new tests, built against nuget.org packages with a locally written stand-in for
-Fidelity.Data's JSON surface: `WorkerWireTests` (round-trip properties and
-refusal controls), `FSharpWorkerTests` (a real bare worker: eval, state, stdout,
-runtime and compile errors, check, completions, cancel of a running eval,
-reset, Hello binding, shutdown; a real project worker running the
-`FSharpCoreIdentityFixture` build) and `ActorCreationTests`: 28/28. A mutation
-removing the Hello session check is caught.
+Windows 11, SDK 10.0.402 with the implicit FSharp.Core pinned to 10.1.401, built
+against the Forgejo heads of Fidelity.Data, BAREWire, Fidelity.PSG,
+Fidelity.FSharp.Incremental and Calque (2026-10-14):
 
-The daemon (`src/Bozzetto`) and `Bozzetto.Tests` were not compiled there: their
-BAREWire/PSG/Fidelity.Data closure was not available. Their changes are
-restorations of pre-retirement code plus the admission and description tests;
-the first build on the owner's machine is their first compile.
+- **Default tier:** 8524/8524 ran. The same 21 failures occur at the base
+  commit `0ad00d8` on this machine and nothing else fails; they are
+  pre-existing Windows behaviour (paths, process environment, managed build),
+  not F# session work.
+- **`--integration-host`:** 103/103 ran, both `F# worker` journeys pass (a bare
+  worker through eval, state, stdout, errors, check, completions, cancel,
+  reset, Hello binding and shutdown; a project worker running the
+  `FSharpCoreIdentityFixture` build). The 13 failures are identical at the
+  base commit.
+- **Live daemon:** an installed build on 47749 created a bare session and a
+  project session over MCP, evaluated and checked code in each, refused a
+  project with missing build outputs as `NeedsRebuild`, and after an edit
+  `hard_reset_fsi_session rebuild=true` served the rebuilt code.
+- A mutation removing the Hello session check is caught by the worker journey.
 
 ## Open work
 
-1. Build and run the unfiltered suite on the reference machine; commit the
-   regenerated `packages.lock.json` files (Ionide.ProjInfo was added and
-   `Bozzetto.Host` is a new project).
-2. Re-admit the retired SageFs-era journeys (`Integration.retireFSharp`) one at a
+1. Re-admit the retired SageFs-era journeys (`Integration.retireFSharp`) one at a
    time, starting with session creation, resume and multi-client routing.
-3. Carry warm-up context and test discovery on the wire, then live testing.
-4. Decide whether the FSharp.Core build-mismatch protection the Isolated
+2. Carry warm-up context and test discovery on the wire, then live testing.
+3. Decide whether the FSharp.Core build-mismatch protection the Isolated
    FsiHost gave (SageFs #141) is needed; the project fixture currently passes
    without it.
+4. On Windows the dashboard's machine-resource panel is empty: resource
+   observation reads `/proc` and is gated to Linux (`UiBridge`).

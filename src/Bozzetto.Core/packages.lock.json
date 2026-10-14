@@ -54,6 +54,28 @@
         "resolved": "2.0.2",
         "contentHash": "sBKqWxw3g//peYxDZ8JipRlyPbIyBtgzqBVA5GqwHVeqtIrw75maGXAllztf+1aJhchD+drcQIgf2mFho8ZV8A=="
       },
+      "Ionide.ProjInfo": {
+        "type": "Direct",
+        "requested": "[0.74.1, )",
+        "resolved": "0.74.1",
+        "contentHash": "UNz07TPT2r0vwevfjB+DqqWnuNOXkuDSY6Nq+gliEGrwH5Tcw3s0r1b9TJga1reORmF7A91L3r0yCsHhSzNp3A==",
+        "dependencies": {
+          "FSharp.Core": "6.0.0",
+          "Microsoft.VisualStudio.SolutionPersistence": "1.0.28",
+          "SemanticVersioning": "2.0.2"
+        }
+      },
+      "Ionide.ProjInfo.FCS": {
+        "type": "Direct",
+        "requested": "[0.74.1, )",
+        "resolved": "0.74.1",
+        "contentHash": "13PzxyadEgOrVsnuSDAKJEIZ7C2I6umPC6sneHhW2IRldwFIVn5SNPjNQNxn/EtweTArmbQwy/ji8MeP3x1qkg==",
+        "dependencies": {
+          "FSharp.Compiler.Service": "43.10.100",
+          "FSharp.Core": "10.0.100",
+          "Ionide.ProjInfo": "0.74.1"
+        }
+      },
       "Microsoft.Extensions.Logging.Abstractions": {
         "type": "Direct",
         "requested": "[9.0.1, )",
@@ -97,6 +119,16 @@
         "type": "Transitive",
         "resolved": "9.0.1",
         "contentHash": "Tr74eP0oQ3AyC24ch17N8PuEkrPbD0JqIfENCYqmgKYNOmL8wQKzLJu3ObxTUDrjnn4rHoR1qKa37/eQyHmCDA=="
+      },
+      "Microsoft.VisualStudio.SolutionPersistence": {
+        "type": "Transitive",
+        "resolved": "1.0.28",
+        "contentHash": "VAdfHO35rE29gaVP8RPf6Et+z6wygxUCyQFUARgzplNje7keq9JZY8vF5oexhHxUTKqilMQyXQ8XdjRFjhQQwQ=="
+      },
+      "SemanticVersioning": {
+        "type": "Transitive",
+        "resolved": "2.0.2",
+        "contentHash": "4EQgYdNZ92SyaO7YFk6olVnebF5V+jrHyMUjvPq89tLeMo8NSfgDF+6Zwq/lgh9j/0yfQp9Lkm0ZA0rUATCZFA=="
       },
       "System.Diagnostics.EventLog": {
         "type": "Transitive",

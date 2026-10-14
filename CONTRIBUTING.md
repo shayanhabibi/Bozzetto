@@ -38,6 +38,26 @@ The build script restores the packages pinned in `Directory.Packages.props` and 
 
 `dotnet build` also restores these dependencies directly. Use `dotnet fsi ci-pipeline.fsx` for the complete build and test gate.
 
+#### Sibling checkouts and Windows
+
+The daemon and tests build against sibling checkouts beside Bozzetto:
+`Fidelity.Data`, `BAREWire`, `Fidelity.PSG` and `Calque`, plus
+`vendor/Fidelity.FSharp.Incremental`, a local feed packed from the
+`Fidelity.FSharp.Incremental` checkout. On Windows four more things matter:
+
+- **SDK roll-forward.** `global.json` names 10.0.401 with `latestFeature`. A
+  newer feature band (10.0.402) brings an implicit FSharp.Core 10.1.402, which
+  BAREWire picks up while Fidelity.PSG and the protocol pin 10.1.401 (NU1605).
+  Build with `-p:FSharpCoreImplicitPackageVersion=10.1.401`.
+- **Calque's syntax acquisition** runs a bash script through Git Bash. It needs
+  `flock`, which Git for Windows lacks, and LF line endings
+  (`git config core.eol lf` in the Calque checkout, then re-checkout).
+- **Lock files** pin the content hashes of the packed Incremental packages; a
+  local pack hashes differently (NU1403). Restore without locked mode locally
+  and do not commit hash-only lock changes.
+- **Resource observation** reads `/proc`, so the dashboard's machine panel is
+  empty on Windows.
+
 ### Build Script
 
 ```bash
