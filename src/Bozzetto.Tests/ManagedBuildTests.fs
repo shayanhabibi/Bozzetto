@@ -59,9 +59,7 @@ let private receipt (result: Result<ManagedBuild.Receipt option * ResultHandle o
   | Ok(Some value, eligible) -> value, eligible
   | other -> failtestf "Expected exact terminal receipt, got %A" other
 let private close handle = ManagedBuild.close handle |> Async.StartAsTask
-let private cleanup handle =
-  { new IDisposable with
-      member _.Dispose() = close handle |> fun pending -> pending.GetAwaiter().GetResult() |> ignore }
+let private cleanup handle = Bozzetto.Tests.TestInfrastructure.asyncCleanup (fun () -> close handle :> Task)
 let private exited (identity: ManagedBuild.ProcessIdentity) =
   try
     use ownedProcess = Process.GetProcessById identity.Pid

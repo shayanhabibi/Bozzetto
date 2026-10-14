@@ -272,22 +272,21 @@ let emptySolution = {
 /// or None when the path contains no Debug/Release segment. The nearest such
 /// segment (searched from the end) is the configuration, whatever the layout.
 let siblingConfigPath (dllPath: string) : string option =
-  let separators = [| Path.DirectorySeparatorChar; Path.AltDirectorySeparatorChar |]
-  let segments = dllPath.Split separators
-  let isConfig (segment: string) =
-    String.Equals(segment, "Debug", StringComparison.OrdinalIgnoreCase)
-    || String.Equals(segment, "Release", StringComparison.OrdinalIgnoreCase)
-  match segments |> Array.tryFindIndexBack isConfig with
+  // Replace only the configuration segment, so the result keeps the input's
+  // own separators and stays comparable with the path the caller holds.
+  let configSegment =
+    System.Text.RegularExpressions.Regex(
+      @"(?<=^|[\\/])(Debug|Release)(?=[\\/]|$)",
+      System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+  // The nearest configuration segment to the file is the configuration.
+  match configSegment.Matches dllPath |> Seq.tryLast with
   | None -> None
-  | Some index ->
+  | Some m ->
     let sibling =
-      match String.Equals(segments.[index], "Debug", StringComparison.OrdinalIgnoreCase) with
+      match String.Equals(m.Value, "Debug", StringComparison.OrdinalIgnoreCase) with
       | true -> "Release"
       | false -> "Debug"
-    segments
-    |> Array.mapi (fun i segment -> match i = index with | true -> sibling | false -> segment)
-    |> String.concat (string Path.DirectorySeparatorChar)
-    |> Some
+    Some (dllPath.Substring(0, m.Index) + sibling + dllPath.Substring(m.Index + m.Length))
 
 let resolveSiblingConfigOutput (dllPath: string) : string option =
   try

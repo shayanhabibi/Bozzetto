@@ -690,6 +690,13 @@ module TrustSignal =
   /// `runReporting` with the real sink: print the TRUST line and append to the ledger.
   let run (tier: string) (argv: string array) (tests: Expecto.Test) : int = runReporting record tier argv tests
 
+/// Awaited cleanup for a task body: `use _cleanup = asyncCleanup (fun () -> task { ... })`
+/// runs at scope exit, after success or failure, without blocking a pool thread
+/// the way a `finally` that waits on a task does.
+let asyncCleanup (cleanup: unit -> System.Threading.Tasks.Task) : System.IAsyncDisposable =
+  { new System.IAsyncDisposable with
+      member _.DisposeAsync() = System.Threading.Tasks.ValueTask(cleanup ()) }
+
 let quietLogger =
   { new Bozzetto.Utils.ILogger with
       member _.LogDebug msg = ()
@@ -798,6 +805,16 @@ let mkProxy (result: ActorResult) : Bozzetto.WorkerProtocol.SessionProxy =
           | :? Bozzetto.BozzettoErrorException as failure -> failure.Error
           | failure -> Bozzetto.BozzettoError.EvalFailed(failure.ToString()))
       return Bozzetto.WorkerProtocol.WorkerResponse.EvalResult(replyId, evaluated, response.Diagnostics |> Array.map diagnostic |> Array.toList, Map.empty)
+    | Bozzetto.WorkerProtocol.WorkerMessage.LoadScript(filePath, replyId) ->
+      // As the worker does: #load with a verbatim path, so Windows paths survive.
+      use deadline = new CancellationTokenSource(Bozzetto.Timeouts.workerHttpRequest)
+      let! response = actor.PostAndAsyncReply(fun reply -> Eval({ Code = sprintf "#load @\"%s\"" filePath; Args = Map.empty }, deadline.Token, reply))
+      let loaded =
+        response.EvaluationResult
+        |> Result.mapError (function
+          | :? Bozzetto.BozzettoErrorException as failure -> failure.Error
+          | failure -> Bozzetto.BozzettoError.ScriptLoadFailed(failure.ToString()))
+      return Bozzetto.WorkerProtocol.WorkerResponse.ScriptLoaded(replyId, loaded)
     | Bozzetto.WorkerProtocol.WorkerMessage.CheckCode(code, replyId) ->
       let! diagnostics = actor.PostAndAsyncReply(fun reply -> GetDiagnostics(code, reply))
       return Bozzetto.WorkerProtocol.WorkerResponse.CheckResult(replyId, diagnostics |> Array.map diagnostic |> Array.toList)

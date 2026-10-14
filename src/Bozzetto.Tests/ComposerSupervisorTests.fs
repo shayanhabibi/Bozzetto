@@ -204,7 +204,10 @@ let private cleanupAcrossMonitorWindow knownPending () = task {
   let readEntered = completion<unit> ()
   let stopEntered = completion<unit> ()
   worker.BeforeStop <- fun () -> stopEntered.TrySetResult() |> ignore; Task.CompletedTask
-  try
+  use _cleanup = TestInfrastructure.asyncCleanup (fun () -> task {
+    heldFormat.TrySetException(OperationCanceledException "test cleanup") |> ignore
+    do! owner.StopAsync().WaitAsync(TimeSpan.FromSeconds 5.) })
+  do! task {
     let! session = openSession owner worker
     let mutable reads = 0
     let mutable expired = false
@@ -250,9 +253,7 @@ let private cleanupAcrossMonitorWindow knownPending () = task {
     | None -> ()
     let! view = snapshots owner
     snapshot session view |> assertWithdrawn
-  finally
-    heldFormat.TrySetException(OperationCanceledException "test cleanup") |> ignore
-    owner.StopAsync().WaitAsync(TimeSpan.FromSeconds 5.).GetAwaiter().GetResult()
+  }
 }
 
 let private lateReplyDuringReplacement holdRefresh () = task {
@@ -611,7 +612,13 @@ let tests =
       let lateFormat = completion<Reply> ()
       let monitorEntered = completion<unit> ()
       let monitorReleased = completion<Reply> ()
-      try
+      use _cleanup = TestInfrastructure.asyncCleanup (fun () -> task {
+        stopReleased.TrySetResult() |> ignore
+        monitorReleased.TrySetException(OperationCanceledException "test cleanup") |> ignore
+        lateBuild.TrySetException(OperationCanceledException "test cleanup") |> ignore
+        lateFormat.TrySetException(OperationCanceledException "test cleanup") |> ignore
+        do! owner.StopAsync().WaitAsync(TimeSpan.FromSeconds 5.) })
+      do! task {
         let! first = openSession owner old
         let! second = openSession owner old
         let! firstBuilt = execute owner (request Operation.Build old first)
@@ -664,12 +671,7 @@ let tests =
         snapshot first afterStop |> assertWithdrawn
         snapshot second afterStop |> assertWithdrawn
         (snapshot first afterStop).WorkerError |> Expect.equal "exit notification retains the initiating deadline" (Some reason)
-      finally
-        stopReleased.TrySetResult() |> ignore
-        monitorReleased.TrySetException(OperationCanceledException "test cleanup") |> ignore
-        lateBuild.TrySetException(OperationCanceledException "test cleanup") |> ignore
-        lateFormat.TrySetException(OperationCanceledException "test cleanup") |> ignore
-        owner.StopAsync().WaitAsync(TimeSpan.FromSeconds 5.).GetAwaiter().GetResult()
+      }
     }
 
     taskCase "pending formatter cleanup renews an expired monitor after a failed status read" (cleanupAcrossMonitorWindow true)
@@ -683,7 +685,10 @@ let tests =
       let owner = ComposerSupervisor((fun () ->
         Interlocked.Increment &creations |> ignore
         Task.FromResult(worker :> IComposerWorker)), true)
-      try
+      use _cleanup = TestInfrastructure.asyncCleanup (fun () -> task {
+        worker.StopThrows <- false
+        do! owner.StopAsync().WaitAsync(TimeSpan.FromSeconds 5.) })
+      do! task {
         let! session = openSession owner worker
         worker.SetFormatterCleanup(session, true, Some "Formatter cleanup exceeded its deadline.")
         let! status = execute owner (request Operation.Status worker session)
@@ -697,9 +702,7 @@ let tests =
         let! retry = execute owner (request Operation.Open worker "")
         retry |> refused RefusalCode.ProviderUnavailable
         creations |> Expect.equal "failed retirement forbids a replacement process" 1
-      finally
-        worker.StopThrows <- false
-        owner.StopAsync().WaitAsync(TimeSpan.FromSeconds 5.).GetAwaiter().GetResult()
+      }
     }
 
     taskCase "late worker replies and late status refreshes cannot revive a retired compiler epoch" <| fun () -> task {
@@ -972,7 +975,10 @@ let tests =
           removeAllowed.Task :> Task
         else Task.CompletedTask
       let owner = ComposerSupervisor((fun () -> Task.FromResult(worker :> IComposerWorker)), true, beforeExit)
-      try
+      use _cleanup = TestInfrastructure.asyncCleanup (fun () -> task {
+        removeAllowed.TrySetResult() |> ignore
+        do! owner.StopAsync().WaitAsync(TimeSpan.FromSeconds 5.) })
+      do! task {
         let! session = openSession owner worker
         use subscription = owner.Changed.Subscribe(fun () ->
           if successorRead.Task.IsCompleted then settledNotice.TrySetResult() |> ignore)
@@ -1009,9 +1015,7 @@ let tests =
         let status = snapshot session view |> success
         (observed status).Busy |> Expect.isFalse "The successor published settled cleanup."
         (observed status).Current.IsSome |> Expect.equal "Reconciliation does not recreate execution authority." false
-      finally
-        removeAllowed.TrySetResult() |> ignore
-        owner.StopAsync().WaitAsync(TimeSpan.FromSeconds 5.).GetAwaiter().GetResult()
+      }
     }
 
     taskCase "canceled busy work publishes its eventual settled status without observer polling" <| fun () -> task {

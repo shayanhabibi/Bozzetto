@@ -1,1 +1,5 @@
 .github/workflows/*.lock.yml linguist-generated=true merge=ours
+# Byte-exact inputs: hashed (the Composer wire schema digest) or served
+# verbatim (the Clef tab icons), so every checkout keeps LF on every platform.
+src/Bozzetto.Composer.Protocol/WireSchema.txt text eol=lf
+*.svg text eol=lf

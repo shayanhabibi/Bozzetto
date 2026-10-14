@@ -201,9 +201,19 @@ let forwardingTests =
     // the worker spawn site calls.
     testCase "a process spawned through applyToWithForwarding receives a declared tool variable" <| fun _ ->
       let workDir = Directory.CreateTempSubdirectory("bozzetto-forward-").FullName
-      let script = Path.Combine(workDir, "child.sh")
-      File.WriteAllText(script, "#!/bin/sh\necho \"SEEN=$BOZZETTO_DETERMINISM_POLICY\"\n")
-      File.SetUnixFileMode(script, UnixFileMode.UserRead ||| UnixFileMode.UserWrite ||| UnixFileMode.UserExecute)
+      // The child is the platform's own shell, so the claim holds wherever the
+      // worker spawns: cmd on Windows, an executable sh script elsewhere.
+      let child (psi: ProcessStartInfo) =
+        if OperatingSystem.IsWindows() then
+          psi.FileName <- "cmd.exe"
+          psi.ArgumentList.Add "/c"
+          psi.ArgumentList.Add "echo SEEN=%BOZZETTO_DETERMINISM_POLICY%"
+        else
+          let script = Path.Combine(workDir, "child.sh")
+          File.WriteAllText(script, "#!/bin/sh\necho \"SEEN=$BOZZETTO_DETERMINISM_POLICY\"\n")
+          File.SetUnixFileMode(script, UnixFileMode.UserRead ||| UnixFileMode.UserWrite ||| UnixFileMode.UserExecute)
+          psi.FileName <- "bash"
+          psi.ArgumentList.Add(script)
 
       let saved =
         [ ProcessEnvironment.forwardPrefixesEnvVar; "BOZZETTO_DETERMINISM_POLICY" ]
@@ -213,8 +223,7 @@ let forwardingTests =
         Environment.SetEnvironmentVariable("BOZZETTO_DETERMINISM_POLICY", "loss=40;latency=250ms")
 
         let psi = new ProcessStartInfo()
-        psi.FileName <- "bash"
-        psi.ArgumentList.Add(script)
+        child psi
         psi.UseShellExecute <- false
         psi.RedirectStandardOutput <- true
         // EXACTLY the call the worker spawn site makes (SessionManager.startWorkerProcess).

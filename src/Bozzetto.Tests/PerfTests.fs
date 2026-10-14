@@ -40,7 +40,9 @@ let private steadyBatch state =
 
 [<Tests>]
 let perfTests =
-  testList "Perf budgets (local)" [
+  // Sequenced: the ratio's GC normalization collects the whole test process, so
+  // it is only a measurement of recordEval when no other test is allocating.
+  testSequenced <| testList "Perf budgets (local)" [
     // Guards the roast's #1 performance finding: recordEval used to rebuild the
     // whole binding scope on every eval — regex per binding, per retained cell —
     // an O(n^2) hot path on the "sub-500ms feedback on every save" promise. Two

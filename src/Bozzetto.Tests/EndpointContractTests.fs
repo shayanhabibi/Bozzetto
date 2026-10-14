@@ -42,16 +42,17 @@ let private withCommandServer durable body = task {
   Server.useOriginGuard (Bozzetto.Server.HttpOriginGuard.OwnOrigins.ofPorts [47749; 47750]) app
   Server.mapLeaseCommandRoutes app (Some supervisor)
   LeaseWatch.reset ()
-  try
+  use _cleanup = TestInfrastructure.asyncCleanup (fun () -> task {
+    LeaseWatch.reset ()
+    do! supervisor.StopAsync()
+    do! app.StopAsync()
+    do! app.DisposeAsync().AsTask()
+    Directory.Delete(directory, true) })
+  do! task {
     do! app.StartAsync()
     use client = new HttpClient(BaseAddress = Uri(Seq.exactlyOne app.Urls), Timeout = TimeSpan.FromSeconds 5.)
     do! body client supervisor store
-  finally
-    LeaseWatch.reset ()
-    supervisor.StopAsync().GetAwaiter().GetResult()
-    app.StopAsync().GetAwaiter().GetResult()
-    app.DisposeAsync().AsTask().GetAwaiter().GetResult()
-    Directory.Delete(directory, true)
+  }
 }
 
 let private granted holder kind =

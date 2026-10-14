@@ -10,15 +10,17 @@ open Bozzetto.Web.Shared.Protocol
 
 let private node = { Node = "one"; Incarnation = "process-1" }
 let private request topic seconds = { ProtocolVersion = ProtocolVersion; Node = "one"; Topic = topic; Seconds = seconds }
-let private worker id endpoint token =
-  sprintf "{\"id\":\"%s\",\"base_url\":\"%s\",\"token_file\":\"%s\"}" id endpoint token
+let private worker id endpoint (token: string) =
+  sprintf "{\"id\":\"%s\",\"base_url\":\"%s\",\"token_file\":\"%s\"}" id endpoint (token.Replace("\\", "\\\\"))
+/// A credential path that is absolute on this platform (/private/x or C:\private\x).
+let private secret (name: string) = Path.GetFullPath("/private/" + name)
 let private config rows = "{\"workers\":[" + String.concat "," rows + "]}"
 
 [<Tests>]
 let tests =
   testList "Work observation transport" [
     testCase "existing Pi authority supplies only fixed observe destinations" <| fun () ->
-      let value = config [worker "one" "https://proxy.example/workers/one/" "/private/one.token"; worker "two" "http://10.0.0.2:8787" "/private/two.token"]
+      let value = config [worker "one" "https://proxy.example/workers/one/" (secret "one.token"); worker "two" "http://10.0.0.2:8787" (secret "two.token")]
       match parsePeers "controller" value with
       | Error reason -> failtest reason
       | Ok peers ->
@@ -27,9 +29,9 @@ let tests =
         peers[1].Endpoint.AbsoluteUri |> Expect.equal "fixed route on bare origin" "http://10.0.0.2:8787/v1/bozzetto/observe"
     testCase "invalid destinations and duplicate nodes are refused" <| fun () ->
       for endpoint in ["file:///private"; "https://user:secret@proxy.example"; "https://proxy.example/?target=other"; "https://proxy.example/#fragment"] do
-        parsePeers "controller" (config [worker "one" endpoint "/private/token"])
+        parsePeers "controller" (config [worker "one" endpoint (secret "token")])
         |> Result.isError |> Expect.isTrue "endpoint cannot add authority"
-      parsePeers "controller" (config [worker "one" "https://one.example" "/private/token";worker "one" "https://two.example" "/private/token"])
+      parsePeers "controller" (config [worker "one" "https://one.example" (secret "token");worker "one" "https://two.example" (secret "token")])
       |> Expect.equal "duplicate identity has a specific refusal" (Error "Duplicate work node id.")
       parsePeers "controller" (config [worker "one" "https://one.example" "relative.token"])
       |> Expect.equal "credential reference stays absolute" (Error "Worker token_file must be absolute.")
@@ -42,16 +44,20 @@ let tests =
     testCase "node and protocol are checked before scope admission" <| fun () ->
       validateRequest node { request "work" 0 with Node = "two" }
       |> Expect.equal "cannot observe another node by alias" (Error "node_mismatch")
-      validateRequest node { request "work" 0 with ProtocolVersion = ProtocolVersion - 1 }
-      |> Expect.equal "no protocol fallback" (Error "protocol_mismatch")
+      validateRequest node { request "work" 0 with ProtocolVersion = LegacyProtocolVersion }
+      |> Expect.equal "deployed legacy peers stay readable" (Ok ())
+      validateRequest node { request "work" 0 with ProtocolVersion = LegacyProtocolVersion - 1 }
+      |> Expect.equal "no fallback past the legacy version" (Error "protocol_mismatch")
     testCase "transcript reads bind the node incarnation and bounded cursor" <| fun () ->
       let read = { PeerTranscriptRequest.ProtocolVersion = ProtocolVersion
                    Request = { Source = node; Journal = "journal"; Sequence = 1L; Stream = Stdout; Offset = 0L; MaxBytes = MaxTranscriptPageBytes } }
       validateTranscriptRequest node read |> Expect.equal "bounded read admitted" (Ok())
       validateTranscriptRequest node { read with Request = { read.Request with Source = { node with Incarnation = "retired" } } }
       |> Expect.equal "same node name is insufficient" (Error "node_mismatch")
-      validateTranscriptRequest node { read with ProtocolVersion = ProtocolVersion - 1 }
-      |> Expect.equal "version mismatch has no fallback" (Error "protocol_mismatch")
+      validateTranscriptRequest node { read with ProtocolVersion = LegacyProtocolVersion }
+      |> Expect.equal "deployed legacy peers stay readable" (Ok ())
+      validateTranscriptRequest node { read with ProtocolVersion = LegacyProtocolVersion - 1 }
+      |> Expect.equal "version mismatch past the legacy version has no fallback" (Error "protocol_mismatch")
       for limit in [0; MaxTranscriptPageBytes + 1] do
         validateTranscriptRequest node { read with Request = { read.Request with MaxBytes = limit } }
         |> Expect.equal "exact byte bound enforced" (Error "invalid_limit")

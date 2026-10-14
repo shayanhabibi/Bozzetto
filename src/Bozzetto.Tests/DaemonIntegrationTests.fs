@@ -305,7 +305,12 @@ let daemonStartupFailsClosedTests =
         daemonProc.ExitCode
         |> Expect.notEqual "a failed required bind must be a non-zero exit, not a quiet success" 0
 
-        let logged = File.ReadAllText outLog
+        // The test's own writer still holds the file; Windows only lets a
+        // reader in that shares write access with it.
+        let logged =
+          use stream = new FileStream(outLog, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)
+          use reader = new StreamReader(stream)
+          reader.ReadToEnd()
         logged
         |> Expect.stringContains "the failure is explained, not silent" "did not stay up"
         logged.Contains "Bozzetto daemon ready"

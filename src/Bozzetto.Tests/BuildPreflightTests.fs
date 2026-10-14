@@ -1,18 +1,24 @@
 module Bozzetto.Tests.BuildPreflightTests
 
+open System.IO
 open Expecto
 open Expecto.Flip
 open FsCheck
 open Bozzetto
 
-let private projectFile = "/repo/App.fsproj"
+/// Fixture paths in the platform's own full-path form (/repo, or C:\repo on Windows), the
+/// form BuildPreflight composes with Path.GetFullPath and Path.Combine.
+let private repo (parts: string list) =
+  Path.Combine(Array.ofList (Path.GetFullPath "/repo" :: parts))
+
+let private projectFile = repo [ "App.fsproj" ]
 let private conventional =
-  [ "/repo/obj/project.assets.json"
-    "/repo/obj/App.fsproj.nuget.g.props" ]
+  [ repo [ "obj"; "project.assets.json" ]
+    repo [ "obj"; "App.fsproj.nuget.g.props" ] ]
 
 let private arcade =
-  [ "/repo/artifacts/obj/App/project.assets.json"
-    "/repo/artifacts/obj/App/App.fsproj.nuget.g.props" ]
+  [ repo [ "artifacts"; "obj"; "App"; "project.assets.json" ]
+    repo [ "artifacts"; "obj"; "App"; "App.fsproj.nuget.g.props" ] ]
 
 let private check files target =
   let present = Set.ofList files

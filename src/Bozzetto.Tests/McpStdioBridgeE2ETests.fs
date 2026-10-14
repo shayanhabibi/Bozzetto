@@ -79,7 +79,7 @@ let private runBridgeSmokeTest () : Task<unit> =
               (stderrBuf.ToString())
           )
         | Some line ->
-          line |> Expect.stringContains "the initialize response names the server" "\"name\":\"Bozzetto\""
+          line |> Expect.stringContains "the initialize response names the server" "\"name\":\"bozzetto\""
           line |> Expect.stringContains "the initialize response carries the request id back" "\"id\":1"
 
           // Confirm the daemon this bridge started is real, then hold its
@@ -205,7 +205,7 @@ let private runPipelinedBatchReproTest () : Task<unit> =
               (stderrBuf.ToString())
           )
         | Some line ->
-          line |> Expect.stringContains "the initialize response names the server" "\"name\":\"Bozzetto\""
+          line |> Expect.stringContains "the initialize response names the server" "\"name\":\"bozzetto\""
 
           match Bozzetto.DaemonState.readOnPort mcpPort with
           | Some info -> daemonPid.Value <- Some info.Pid

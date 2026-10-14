@@ -80,7 +80,9 @@ module McpSessionRouting =
         let baseDir = normalizePath s.WorkingDirectory
         not (String.IsNullOrWhiteSpace baseDir)
         && isPathAncestorOf baseDir target
-        && not (crossesCheckoutBoundaryWith hasCheckoutMarker baseDir target))
+        // Probe the caller's own path: normalization lowercases on Windows,
+        // and a checkout marker belongs to the real directory.
+        && not (crossesCheckoutBoundaryWith hasCheckoutMarker baseDir (workingDir.TrimEnd('/', '\\'))))
     | matched -> matched
 
   let sessionsMatchingWorkingDirDeep (sessions: WorkerProtocol.SessionInfo list) (workingDir: string) =

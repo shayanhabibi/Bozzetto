@@ -59,7 +59,8 @@ let unionCaseShadowingFsiRegressionTests =
         // `#r` what warmup's auto-open-namespaces would already have loaded
         // for a session self-hosting Bozzetto.Core, then open every module
         // this bug report named.
-        mustSucceed session (sprintf "#r \"%s\";;" coreDllPath)
+        // Verbatim: a Windows path holds sequences like \b that a plain literal escapes.
+        mustSucceed session (sprintf "#r @\"%s\";;" coreDllPath)
         mustSucceed session "open Bozzetto.Features.EvalTimeline;;"
         mustSucceed session "open Bozzetto.Features.Diagnostics;;"
         mustSucceed session "open Bozzetto.Features.MessageJournal;;"

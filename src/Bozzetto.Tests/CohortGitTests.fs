@@ -29,6 +29,14 @@ module Integration = Bozzetto.Tests.TestInfrastructure.Integration
 let tests =
   Integration.hostList "CohortGit" [
 
+    // git writes its object files read-only; Windows refuses to delete those,
+    // so clear the attribute before removing a throwaway repo or worktree.
+    let deleteTree (dir: string) =
+      if Directory.Exists dir then
+        for file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories) do
+          File.SetAttributes(file, FileAttributes.Normal)
+        Directory.Delete(dir, true)
+
     let gitAvailable () : bool =
       try
         let psi =
@@ -107,7 +115,7 @@ let tests =
           match result with
           | Ok sha -> sha |> Expect.equal "sha should match the independent git rev-parse HEAD" expectedSha
           | Error e -> failtestf "expected Ok, got Error %s" e
-        finally Directory.Delete(repo, true)
+        finally deleteTree repo
       }
 
       testAsync "diffNames lists exactly the files changed between two commits" {
@@ -124,7 +132,7 @@ let tests =
           | Ok files ->
             files |> List.sort |> Expect.equal "should list exactly b.txt and c.txt" [ "b.txt"; "c.txt" ]
           | Error e -> failtestf "expected Ok, got Error %s" e
-        finally Directory.Delete(repo, true)
+        finally deleteTree repo
       }
 
       testAsync "rebase of a non-conflicting commit onto an advanced main returns Ok and leaves the worktree clean" {
@@ -146,7 +154,7 @@ let tests =
             status |> Expect.isEmpty "worktree should be clean after a successful rebase"
             isRebaseInProgress repo |> Expect.isFalse "no rebase should be left in progress"
           | Error files -> failtestf "expected Ok, got %A" files
-        finally Directory.Delete(repo, true)
+        finally deleteTree repo
       }
 
       testAsync "rebase with a conflicting change returns Error with the conflicting file, and leaves the worktree clean" {
@@ -173,7 +181,7 @@ let tests =
             status |> Expect.isEmpty "worktree should be clean after an aborted rebase"
             isRebaseInProgress repo |> Expect.isFalse "no rebase should be left in progress"
           | Ok sha -> failtestf "expected a conflict, got Ok %s" sha
-        finally Directory.Delete(repo, true)
+        finally deleteTree repo
       }
 
       testAsync "rebase onto a nonexistent ref is an infra failure, not a conflict, and leaves the worktree clean" {
@@ -193,7 +201,7 @@ let tests =
             status |> Expect.isEmpty "worktree should be clean after an infra failure too"
             isRebaseInProgress repo |> Expect.isFalse "no rebase should be left in progress"
           | Ok sha -> failtestf "expected Error for a nonexistent onto ref, got Ok %s" sha
-        finally Directory.Delete(repo, true)
+        finally deleteTree repo
       }
 
       testAsync "fastForwardBranch fast-forwards when possible and returns the sha" {
@@ -212,7 +220,7 @@ let tests =
             let! mainSha = git repo [ "rev-parse"; "main" ]
             mainSha |> Expect.equal "main should now point at the target sha" headSha
           | Error e -> failtestf "expected Ok, got Error %s" e
-        finally Directory.Delete(repo, true)
+        finally deleteTree repo
       }
 
       testAsync "fastForwardBranch returns Error (no merge commit) when ff is impossible" {
@@ -232,7 +240,7 @@ let tests =
             let! mainShaAfter = git repo [ "rev-parse"; "main" ]
             mainShaAfter |> Expect.equal "main must be untouched when a fast-forward isn't possible" mainShaBefore
           | Ok sha -> failtestf "expected Error when fast-forward is impossible, got Ok %s" sha
-        finally Directory.Delete(repo, true)
+        finally deleteTree repo
       }
 
       testAsync "addWorktree creates a worktree on a new branch at a base ref, and removeWorktree cleans it up" {
@@ -254,8 +262,8 @@ let tests =
             | Error e -> failtestf "expected removeWorktree to succeed, got Error %s" e
           | Error e -> failtestf "expected addWorktree to succeed, got Error %s" e
         finally
-          (try Directory.Delete(repo, true) with _ -> ())
-          (try Directory.Delete(worktreeParent, true) with _ -> ())
+          (try deleteTree repo with _ -> ())
+          (try deleteTree worktreeParent with _ -> ())
       }
     ]
   ]

@@ -42,6 +42,14 @@ type StdoutWriter(stream: Stream) =
 /// on it.
 let openStdout () : StdoutWriter = StdoutWriter(Console.OpenStandardOutput())
 
+/// The raw stdin handle, decoded as UTF-8 whatever the console code page:
+/// stdio MCP framing is UTF-8 in both directions. `Console.In` decodes with
+/// the console code page on Windows (CP437 by default), which mangles any
+/// non-ASCII character and turns a client's UTF-8 byte-order mark into text
+/// at the front of the first message. A leading byte-order mark is consumed.
+let openStdin () : StreamReader =
+  new StreamReader(Console.OpenStandardInput(), UTF8Encoding(false), true)
+
 /// The two ways forwarding one message to the daemon can fail — kept apart
 /// on purpose (issue #138): a `Rejected` message means the daemon is alive
 /// and reachable and said "no" to THIS request; an `Unreachable` message
@@ -439,9 +447,10 @@ let terminateSession (client: HttpClient) (port: int) (sessionId: string) : Task
 /// stdio never sends one) and is skipped rather than parsed and rejected.
 let pumpStdin (post: Event -> unit) : Task<unit> =
   task {
+    use stdin = openStdin ()
     let mutable finished = false
     while not finished do
-      let! line = Console.In.ReadLineAsync()
+      let! line = stdin.ReadLineAsync()
       match line with
       | null ->
         post Event.StdinClosed

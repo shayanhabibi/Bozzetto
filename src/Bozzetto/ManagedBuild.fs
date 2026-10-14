@@ -90,6 +90,13 @@ module ManagedBuild =
     fields |> List.map (fun value -> string (Encoding.UTF8.GetByteCount value) + ":" + value)
     |> String.concat "" |> Encoding.UTF8.GetBytes |> hashBytes
 
+  /// The muxer's own file name: dotnet, or dotnet.exe on Windows.
+  let private isDotnetHost (path: string) =
+    match Path.GetFileName path with
+    | "dotnet" -> true
+    | "dotnet.exe" -> OperatingSystem.IsWindows()
+    | _ -> false
+
   let private validate (request: Request) =
     let absolute (path: string) = Path.IsPathFullyQualified path && Path.GetFullPath path = path
     let inside (path: string) = path.StartsWith(request.Checkout.TrimEnd(Path.DirectorySeparatorChar) + string Path.DirectorySeparatorChar, StringComparison.Ordinal)
@@ -99,7 +106,7 @@ module ManagedBuild =
     elif not (absolute request.Checkout && Directory.Exists(Path.Combine(request.Checkout, ".git"))) then
       Error "managed-build: a primary Git checkout is required"
     elif not (inside request.Project) then Error "managed-build: project is outside the primary checkout"
-    elif Path.GetFileName(request.Dotnet.Path) <> "dotnet" then Error "managed-build: an explicit dotnet host is required"
+    elif not (isDotnetHost request.Dotnet.Path) then Error "managed-build: an explicit dotnet host is required"
     elif request.Inputs |> List.exists (fun file -> not (validHash file.Sha256)) then Error "managed-build: invalid input digest"
     elif not (validHash request.Dotnet.Sha256) then Error "managed-build: invalid tool digest"
     elif request.Inputs |> List.exists (fun file -> file.Path = request.Project) |> not then Error "managed-build: project is absent from the declared input closure"
@@ -173,9 +180,11 @@ module ManagedBuild =
       do! child.WaitForExitAsync(CancellationToken.None)
       try do! Task.WhenAll(output, errors)
       with error -> executionFailure <- Some error.Message
+      // Close the joined logs before binding them: evidence is the final bytes,
+      // and no writer can still hold the file (Windows refuses to share it).
       try
-        do! stdout.FlushAsync()
-        do! stderr.FlushAsync()
+        do! stdout.DisposeAsync()
+        do! stderr.DisposeAsync()
       with error -> executionFailure <- Some error.Message
       registration.Dispose() // join an in-flight kill callback before lease release
       let mutable evidenceFailure = None
