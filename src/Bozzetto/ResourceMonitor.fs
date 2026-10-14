@@ -27,7 +27,7 @@ let empty status = {
 /// `onSample` sees every sample taken for a page, so an owner of a fact the
 /// sample carries (the machine's memory, and the pressure level it implies)
 /// learns of it when the page does.
-type Monitor(acquire: unit -> LinuxResources.Raw, interval: TimeSpan, onSample: HostResources -> unit) =
+type Monitor(acquire: unit -> HostSample.Raw, interval: TimeSpan, onSample: HostResources -> unit) =
   let gate = obj ()
   let mutable latest = empty "stopped"
   let delays = new CancellationTokenSource()
@@ -79,7 +79,7 @@ type Monitor(acquire: unit -> LinuxResources.Raw, interval: TimeSpan, onSample: 
           let started = Stopwatch.GetTimestamp()
           try
             let raw = acquire ()
-            let value = LinuxResources.project previous raw
+            let value = HostSample.project previous raw
             let nextGraph, occupied = ResourceGraph.update value.Metrics graph
             let value = { value with Sequence = sequence + 1L; Metrics = Array.append [|occupied|] value.Metrics
                                      SampleCostMs = Stopwatch.GetElapsedTime(started).TotalMilliseconds }
@@ -117,4 +117,19 @@ type Monitor(acquire: unit -> LinuxResources.Raw, interval: TimeSpan, onSample: 
     do! closed.Task |> Async.AwaitTask
   }
 
-let create (onSample: HostResources -> unit) = new Monitor(LinuxResources.acquire, TimeSpan.FromSeconds 2., onSample)
+/// This platform's acquisition edge, or None where the host has none yet.
+let platformAcquire : (unit -> HostSample.Raw) option =
+  if OperatingSystem.IsLinux() then Some LinuxResources.acquire
+  elif OperatingSystem.IsWindows() then Some WindowsResources.acquire
+  else None
+
+/// Whether this host can be observed at all.
+let supported = Option.isSome platformAcquire
+
+/// A monitor over this platform's edge. Where there is none, every acquisition
+/// fails with a named reason; callers check `supported` first.
+let create (onSample: HostResources -> unit) =
+  let acquire =
+    platformAcquire
+    |> Option.defaultValue (fun () -> raise (PlatformNotSupportedException "Host resource acquisition is available on Linux and Windows."))
+  new Monitor(acquire, TimeSpan.FromSeconds 2., onSample)

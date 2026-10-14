@@ -43,7 +43,7 @@ The build script restores the packages pinned in `Directory.Packages.props` and 
 The daemon and tests build against sibling checkouts beside Bozzetto:
 `Fidelity.Data`, `BAREWire`, `Fidelity.PSG` and `Calque`, plus
 `vendor/Fidelity.FSharp.Incremental`, a local feed packed from the
-`Fidelity.FSharp.Incremental` checkout. On Windows four more things matter:
+`Fidelity.FSharp.Incremental` checkout. On Windows three more things matter:
 
 - **SDK roll-forward.** `global.json` names 10.0.401 with `latestFeature`. A
   newer feature band (10.0.402) brings an implicit FSharp.Core 10.1.402, which
@@ -55,8 +55,6 @@ The daemon and tests build against sibling checkouts beside Bozzetto:
 - **Lock files** pin the content hashes of the packed Incremental packages; a
   local pack hashes differently (NU1403). Restore without locked mode locally
   and do not commit hash-only lock changes.
-- **Resource observation** reads `/proc`, so the dashboard's machine panel is
-  empty on Windows.
 
 ### Build Script
 

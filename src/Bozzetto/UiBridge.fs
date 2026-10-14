@@ -1761,8 +1761,8 @@ type Hub(sources: BridgeSources, options: BridgeOptions, stopping: CancellationT
               if admitted then
                 let work = async {
                   match frame.Command with
-                  | ObserveResources _ when not (OperatingSystem.IsLinux()) ->
-                    outbox.Answer([ Outbound.ofEvent(Refused(UiBridgeCodec.frameRefusal frame.Correlation "unsupported" "Host resource acquisition is Linux-only in this build.")) ], release)
+                  | ObserveResources _ when not ResourceMonitor.supported ->
+                    outbox.Answer([ Outbound.ofEvent(Refused(UiBridgeCodec.frameRefusal frame.Correlation "unsupported" "Host resource acquisition is available on Linux and Windows.")) ], release)
                   | ObserveResources seconds ->
                     do! observeLocal (int seconds)
                     outbox.Answer([ Outbound.ofEvent(Accepted { Correlation = frame.Correlation; Target = UiBridgeCodec.noTarget; Completion = SnapshotSent }) ], release)

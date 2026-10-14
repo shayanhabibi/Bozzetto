@@ -8,12 +8,13 @@ open Expecto.Flip
 open Bozzetto.Server
 open Bozzetto.Web.Shared.Protocol
 
-let private counter start ticks : LinuxResources.ProcessCounter =
+let private counter start ticks : HostSample.ProcessCounter =
   { Pid = 42; Parent = 1; Start = start; Name = "outside-build"; Ticks = ticks; Resident = 4096L; Threads = 7 }
-let private raw () : LinuxResources.Raw =
+let private raw () : HostSample.Raw =
   { At = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(); Clock = Stopwatch.GetTimestamp()
-    Cpu = Some { Total = 1000L; Idle = 600L; Wait = 20L; Count = 4 }
-    Processes = [|counter 10L 100L|]; Metrics = [||]; SwapIn = None; SwapOut = None
+    Cpu = Some { Total = 1000L; Idle = 600L; Wait = Some 20L; Count = 4 }
+    Processes = [|counter 10L 100L|]; Metrics = [||]; SwapIn = None; SwapOut = None; SwapPageBytes = 4096L
+    Scope = "test host scope."
     Count = 1; Unreadable = 0; Truncated = false }
 let private metrics used total : ResourceMetric array =
   [| { Name = "RAM used (total − available)"; Unit = "bytes"; Value = Some used }
@@ -25,20 +26,30 @@ let tests = testList "Resource monitoring" [
     let parse text = LinuxResources.parseCpu text |> Option.get
     let a = parse "cpu 10 2 3 40 5 1 1 0 1000 1000\ncpu0 1\ncpu1 1\n"
     a.Total |> Expect.equal "guest not counted twice" 62L
-    let b = { a with Total = a.Total + 100L; Idle = a.Idle + 60L; Wait = a.Wait + 10L }
-    LinuxResources.cpuDelta a b |> Expect.equal "busy and wait have separate meanings" (Some(30.,10.,100L))
-    LinuxResources.cpuDelta b a |> Expect.isNone "counter reset invalidates interval"
-    LinuxResources.cpuDelta a { b with Count = 3 } |> Expect.isNone "hotplug invalidates interval"
+    let b = { a with Total = a.Total + 100L; Idle = a.Idle + 60L; Wait = a.Wait |> Option.map ((+) 10L) }
+    HostSample.cpuDelta a b |> Expect.equal "busy and wait have separate meanings" (Some(30.,Some 10.,100L))
+    HostSample.cpuDelta b a |> Expect.isNone "counter reset invalidates interval"
+    HostSample.cpuDelta a { b with Count = 3 } |> Expect.isNone "hotplug invalidates interval"
+
+  testCase "a platform without an I/O-wait counter reports wait as unavailable, not zero" <| fun _ ->
+    let a : HostSample.Cpu = { Total = 1000L; Idle = 600L; Wait = None; Count = 4 }
+    let b = { a with Total = 1100L; Idle = 660L }
+    HostSample.cpuDelta a b |> Expect.equal "busy is total minus idle; wait is absent" (Some(40., None, 100L))
+    let sample = HostSample.project (Some { raw() with Cpu = Some a }) { raw() with Cpu = Some b }
+    sample.Metrics |> Array.find (fun m -> m.Name = "Host CPU I/O wait") |> _.Value
+    |> Expect.isNone "no counter is not 0% wait"
+    sample.Metrics |> Array.find (fun m -> m.Name = "Host CPU busy") |> _.Value
+    |> Expect.equal "busy still measured" (Some 40.)
 
   testCase "process CPU is core equivalents and PID reuse is unavailable" <| fun _ ->
     let p = counter 10L 100L
-    LinuxResources.processPercent 400L 4 (Some p) { p with Ticks = 200L }
+    HostSample.processPercent 400L 4 (Some p) { p with Ticks = 200L }
     |> Expect.equal "one busy CPU on four CPUs is 100 not 25" (Some 100.)
-    LinuxResources.processPercent 400L 4 (Some p) { p with Start = 11L; Ticks = 200L }
+    HostSample.processPercent 400L 4 (Some p) { p with Start = 11L; Ticks = 200L }
     |> Expect.isNone "new incarnation cannot inherit old CPU"
-    LinuxResources.processPercent 400L 4 (Some p) { p with Ticks = 10L }
+    HostSample.processPercent 400L 4 (Some p) { p with Ticks = 10L }
     |> Expect.isNone "regressing counter isn't idle"
-    LinuxResources.processPercent 400L 4 None p |> Expect.isNone "first observation isn't idle"
+    HostSample.processPercent 400L 4 None p |> Expect.isNone "first observation isn't idle"
 
   testCase "proc stat handles parentheses in comm and scales RSS pages" <| fun _ ->
     let fields = Array.create 22 "0"
@@ -51,7 +62,7 @@ let tests = testList "Resource monitoring" [
     LinuxResources.parseProcess 4096 "disappeared" |> Expect.isNone "malformed/disappearing process"
 
   testCase "external process visible without daemon ownership and no RSS host total" <| fun _ ->
-    let sample = LinuxResources.project None (raw())
+    let sample = HostSample.project None (raw())
     sample.Processes[0].Name |> Expect.equal "outside workload retained" "outside-build"
     sample.Processes[0].CpuPercent |> Expect.isNone "no baseline is not zero"
     sample.Metrics |> Array.exists (fun m -> m.Name = "Host CPU busy" && m.Value.IsNone)
@@ -78,7 +89,7 @@ let tests = testList "Resource monitoring" [
     match UiBridgeCodec.decodeCommand invalid with
     | Error r -> r.Message |> Expect.stringContains "specific bounds refusal" "0 through 120"
     | Ok _ -> failtest "unbounded request accepted"
-    let sample = LinuxResources.project None (raw())
+    let sample = HostSample.project None (raw())
     let encoded = UiBridgeCodec.encodeEvent(Resources sample)
     match Bozzetto.Web.Shared.BinaryCodec.decodeEvent encoded with
     | Ok(Resources decoded) ->
@@ -118,4 +129,33 @@ let tests = testList "Resource monitoring" [
     reads |> Expect.equal "expired window never silently renews" stopped
     do! monitor.Close()
   }
+
+  testCase "this host has an acquisition edge where one exists" <| fun _ ->
+    ResourceMonitor.supported
+    |> Expect.equal "Linux and Windows are observable; other hosts are refused by name" (OperatingSystem.IsLinux() || OperatingSystem.IsWindows())
+
+  testCaseAsync "a Windows acquisition fills the panel's metrics and sees this process" <| async {
+    if not (OperatingSystem.IsWindows()) then skiptest "the Windows acquisition edge runs on Windows"
+    let first = WindowsResources.acquire ()
+    let value name = first.Metrics |> Array.tryFind (fun m -> m.Name = name) |> Option.bind _.Value
+    for name in [ "RAM used (total − available)"; "RAM available"; "RAM total (OS managed)"; "Swap used"; "Commit charge" ] do
+      value name |> Option.isSome |> Expect.isTrue (sprintf "%s is measured" name)
+    (value "RAM available", value "RAM total (OS managed)")
+    ||> Option.map2 (<) |> Expect.equal "available is below total" (Some true)
+    let own = first.Processes |> Array.tryFind (fun p -> p.Pid = Environment.ProcessId)
+    own |> Option.isSome |> Expect.isTrue "the test process is in the process table"
+    own |> Option.map (fun p -> p.Resident > 0L && p.Ticks > 0L && p.Threads > 0) |> Expect.equal "its counters are read" (Some true)
+    first.Cpu |> Option.map (fun c -> c.Count, c.Wait) |> Expect.equal "every logical CPU counted, no invented I/O wait" (Some (Environment.ProcessorCount, None))
+    do! Async.Sleep 200
+    let sample = HostSample.project (Some first) (WindowsResources.acquire ())
+    sample.Metrics |> Array.find (fun m -> m.Name = "Host CPU busy") |> _.Value
+    |> Option.map (fun busy -> busy >= 0. && busy <= 100.) |> Expect.equal "a second observation yields a CPU percentage" (Some true)
+  }
+
+  testCase "on Windows the machine's memory comes from the OS, not the runtime's estimate" <| fun _ ->
+    if not (OperatingSystem.IsWindows()) then skiptest "the Windows memory source runs on Windows"
+    let os = Bozzetto.WindowsHost.memory () |> Option.get
+    let stats = Bozzetto.Features.MachineMemory.current ()
+    stats.TotalBytes |> Expect.equal "total physical memory as Windows reports it" os.TotalPhysical
+    (stats.AvailableBytes > 0L && stats.AvailableBytes < stats.TotalBytes) |> Expect.isTrue "available is a real share of total"
 ]

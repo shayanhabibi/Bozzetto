@@ -134,6 +134,7 @@
         <Compile Include="Features\SessionScribe.fs" />
         <Compile Include="Features\MessageJournal.fs" />
         <Compile Include="Features\TestNarration.fs" />
+        <Compile Include="WindowsHost.fs" />
         <Compile Include="Features\MachineMemory.fs" />
         <Compile Include="Features\HealthAnomaly.fs" />
         <Compile Include="Features\HealthWatch.fs" />

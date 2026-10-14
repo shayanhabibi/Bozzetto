@@ -1,23 +1,13 @@
-/// Linux acquisition edge and pure interval calculations. No timer, policy,
-/// subprocess, managed process object, or kill authority lives here.
+/// Linux acquisition edge: `/proc` and `/sys` parsed into a HostSample.Raw.
+/// No timer, policy, subprocess, managed process object, or kill authority
+/// lives here.
 module Bozzetto.Server.LinuxResources
 
 open System
 open System.IO
 open System.Globalization
 open System.Diagnostics
-open Bozzetto.Web.Shared.Protocol
-
-type Cpu = { Total: int64; Idle: int64; Wait: int64; Count: int }
-type ProcessCounter = {
-  Pid: int; Parent: int; Start: int64; Name: string
-  Ticks: int64; Resident: int64; Threads: int
-}
-type Raw = {
-  At: int64; Clock: int64; Cpu: Cpu option; Processes: ProcessCounter array
-  Metrics: ResourceMetric array; SwapIn: int64 option; SwapOut: int64 option
-  Count: int; Unreadable: int; Truncated: bool
-}
+open Bozzetto.Server.HostSample
 
 let private fields (text: string) = text.Split([|' '; '\t'; '\n'; '\r'|], StringSplitOptions.RemoveEmptyEntries)
 let private integer (text: string) =
@@ -32,8 +22,6 @@ let private read path = try Some(File.ReadAllText path) with _ -> None
 let private directories path =
   try Directory.EnumerateDirectories path |> Seq.truncate 8193 |> Seq.toArray
   with _ -> [||]
-let private metric name unit value : ResourceMetric = { Name = name; Unit = unit; Value = value }
-
 /// Guest times are already in user/nice. Include the first eight fields only.
 let parseCpu (text: string) =
   let lines = text.Split('\n')
@@ -42,7 +30,7 @@ let parseCpu (text: string) =
     if xs.Length < 8 || Array.exists Option.isNone xs then None
     else
       let n = Array.map Option.get xs
-      Some { Total = Array.sum n; Idle = n[3]; Wait = n[4]
+      Some { Total = Array.sum n; Idle = n[3]; Wait = Some n[4]
              Count = lines |> Array.filter (fun l -> l.Length > 3 && l.StartsWith "cpu" && Char.IsDigit l[3]) |> Array.length })
 
 /// comm may contain spaces and closing parentheses; numeric fields follow the
@@ -66,17 +54,6 @@ let parseValues (text: string) =
     match fields line with
     | xs when xs.Length >= 2 -> integer xs[1] |> Option.map (fun n -> xs[0].TrimEnd(':'), n)
     | _ -> None) |> Map.ofArray
-
-let cpuDelta (previous: Cpu) (current: Cpu) =
-  let total = current.Total - previous.Total
-  let idle, wait = current.Idle - previous.Idle, current.Wait - previous.Wait
-  if total <= 0L || idle < 0L || wait < 0L || idle + wait > total || previous.Count <> current.Count then None
-  else Some(100. * float (total - idle - wait) / float total, 100. * float wait / float total, total)
-
-let processPercent totalDelta cpus (previous: ProcessCounter option) (current: ProcessCounter) =
-  previous |> Option.bind (fun p ->
-    if totalDelta <= 0L || p.Pid <> current.Pid || p.Start <> current.Start || current.Ticks < p.Ticks then None
-    else Some(100. * float (current.Ticks - p.Ticks) / float totalDelta * float cpus))
 
 let private gpuMetrics () =
   let cards = directories "/sys/class/drm" |> Array.filter (fun p ->
@@ -112,7 +89,8 @@ let acquire () =
         fields line |> Array.tryFind (fun s -> s.StartsWith "avg10=") |> Option.bind (fun s -> number (s.Substring 6))))
   { At = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(); Clock = Stopwatch.GetTimestamp()
     Cpu = read "/proc/stat" |> Option.bind parseCpu; Processes = rows
-    SwapIn = Map.tryFind "pswpin" vm; SwapOut = Map.tryFind "pswpout" vm
+    SwapIn = Map.tryFind "pswpin" vm; SwapOut = Map.tryFind "pswpout" vm; SwapPageBytes = int64 Environment.SystemPageSize
+    Scope = "Linux host scope; GPU driver counters overlap host RAM on UMA—do not add them. RSS includes shared pages."
     Count = paths.Length; Unreadable = min 8192 paths.Length - rows.Length; Truncated = paths.Length > 8192
     Metrics = Array.concat [
       [| metric "RAM used (total − available)" "bytes" (used "MemTotal" "MemAvailable")
@@ -125,32 +103,3 @@ let acquire () =
          metric "CPU stalls (PSI some, avg10)" "percent" (pressure "cpu")
          metric "I/O stalls (PSI some, avg10)" "percent" (pressure "io") |]
       gpuMetrics () ] }
-
-let project (previous: Raw option) (current: Raw) : HostResources =
-  let interval = previous |> Option.map (fun p -> Stopwatch.GetElapsedTime(p.Clock,current.Clock).TotalMilliseconds) |> Option.defaultValue 0.
-  let delta = Option.bind (fun p -> Option.bind (fun old -> current.Cpu |> Option.bind (cpuDelta old)) p.Cpu) previous
-  let oldProcesses = previous |> Option.map (fun p -> p.Processes |> Array.map (fun p -> p.Pid,p) |> Map.ofArray) |> Option.defaultValue Map.empty
-  let processes = current.Processes |> Array.map (fun p ->
-    { ResourceProcess.ProcessId = p.Pid; ParentId = p.Parent; StartTicks = string p.Start; Name = p.Name; Context = "external/unattributed"
-      CpuPercent = delta |> Option.bind (fun (_,_,total) -> processPercent total (current.Cpu.Value.Count) (Map.tryFind p.Pid oldProcesses) p)
-      ResidentBytes = float p.Resident; Threads = p.Threads })
-  let selected = Array.append
-                   (processes |> Array.sortByDescending (fun p -> Option.defaultValue -1. p.CpuPercent) |> Array.truncate 12)
-                   (processes |> Array.sortByDescending _.ResidentBytes |> Array.truncate 12)
-                 |> Array.distinctBy _.ProcessId
-  let swap previousValue currentValue =
-    Option.bind (fun p -> Option.map2 (fun old now -> old,now) (previousValue p) currentValue) previous
-    |> Option.bind (fun (old,now) -> if now < old || interval <= 0. then None else Some(float (now-old) * float Environment.SystemPageSize * 1000. / interval))
-  { SampledAtMs = current.At; IntervalMs = interval; SampleCostMs = 0.
-    Sequence = 0L; Status = "observing"
-    Metrics = Array.append
-      [| metric "Host CPU busy" "percent" (delta |> Option.map (fun (busy,_,_) -> busy))
-         metric "Host CPU I/O wait" "percent" (delta |> Option.map (fun (_,wait,_) -> wait))
-         metric "Logical CPUs" "count" (current.Cpu |> Option.map (fun c -> float c.Count))
-         metric "Swap in" "bytes/s" (swap _.SwapIn current.SwapIn)
-         metric "Swap out" "bytes/s" (swap _.SwapOut current.SwapOut) |] current.Metrics
-    Processes = selected; ProcessCount = current.Count; UnreadableCount = current.Unreadable
-    OmittedCount = max 0 (current.Processes.Length - selected.Length)
-    Note = "Linux host scope; GPU driver counters overlap host RAM on UMA—do not add them. RSS includes shared pages. First CPU/rate reading needs a second observation. "
-           + (if current.Truncated then "Process scan capped at 8192. " else "")
-           + "No lease attribution, leak verdict or automatic termination in this slice." }

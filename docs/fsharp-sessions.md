@@ -85,5 +85,3 @@ Fidelity.FSharp.Incremental and Calque (2026-10-14):
 3. Decide whether the FSharp.Core build-mismatch protection the Isolated
    FsiHost gave (SageFs #141) is needed; the project fixture currently passes
    without it.
-4. On Windows the dashboard's machine-resource panel is empty: resource
-   observation reads `/proc` and is gated to Linux (`UiBridge`).

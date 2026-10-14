@@ -51,18 +51,23 @@ module MachineMemory =
 
   /// Best-effort snapshot of the machine's memory. On Linux, reads
   /// `/proc/meminfo` directly — no new dependency, just a file the kernel
-  /// already publishes. Anywhere else (no `/proc/meminfo`: Windows, macOS),
-  /// falls back to the .NET GC's own view of the machine/container memory
-  /// ceiling as `TotalBytes`, and treats this PROCESS's own working set as
-  /// the only claim on it, so `AvailableBytes` is an honest-but-conservative
-  /// approximation (other processes on the box are invisible to it) rather
-  /// than a number this module pretends is exact. Never throws: any failure
-  /// reading or parsing falls through to the GC-based estimate.
+  /// already publishes. On Windows, asks the OS the same question through
+  /// `GlobalMemoryStatusEx` (`WindowsHost.memory`), whose available figure is
+  /// the counterpart of MemAvailable. Anywhere else (macOS), falls back to the
+  /// .NET GC's own view of the machine/container memory ceiling as
+  /// `TotalBytes`, and treats this PROCESS's own working set as the only claim
+  /// on it, so `AvailableBytes` is an honest-but-conservative approximation
+  /// (other processes on the box are invisible to it) rather than a number
+  /// this module pretends is exact. Never throws: any failure reading or
+  /// parsing falls through to the GC-based estimate.
   let current () : Stats =
     let fromProc =
       try
         match File.Exists procMeminfoPath with
         | true -> parseMeminfo (File.ReadAllLines procMeminfoPath)
+        | false when OperatingSystem.IsWindows() ->
+          Bozzetto.WindowsHost.memory ()
+          |> Option.map (fun m -> { TotalBytes = m.TotalPhysical; AvailableBytes = m.AvailablePhysical })
         | false -> None
       with _ -> None
     match fromProc with
