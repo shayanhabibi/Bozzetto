@@ -2,12 +2,22 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
-      "Fidelity.FSharp.Incremental": {
-        "type": "Transitive",
-        "resolved": "0.1.0-preview.6",
-        "contentHash": "gUbzjdThNhnidJsS2t+1PGjhmUlOrFAthYucZwjqVBEvVQzUpuc99PwxBKIoY1uvFUpszg+6Kj2fTr2oP4ve2Q==",
+      "Fantomas.Core": {
+        "type": "Direct",
+        "requested": "[8.0.0-alpha-002, )",
+        "resolved": "8.0.0-alpha-002",
+        "contentHash": "ejNsLotf7sbx87ICvgBBo3m2QbEx/XbNVOKxPbfwwVVnvMwJF9aMFX5PZhGj033FxGymkGoFpwaQCDn8YeZVkQ==",
         "dependencies": {
-          "FSharp.Core": "10.1.401"
+          "FSharp.Core": "9.0.300",
+          "Fantomas.FCS": "8.0.0-alpha-002"
+        }
+      },
+      "Fantomas.FCS": {
+        "type": "Transitive",
+        "resolved": "8.0.0-alpha-002",
+        "contentHash": "CDRwhuKQnb6ThWHLw9nYM3w7hHyZbWhLARKrS2UYrWGkR60PlwAZ3QF8+rfzPh6OJ9ZZg2PpZ2aVDQLqk4LGjg==",
+        "dependencies": {
+          "FSharp.Core": "9.0.300"
         }
       },
       "XParsec": {
@@ -18,38 +28,27 @@
           "FSharp.Core": "8.0.300"
         }
       },
-      "bozzetto.composer.protocol": {
+      "barewire": {
         "type": "Project",
         "dependencies": {
           "FSharp.Core": "[10.1.401, )"
+        }
+      },
+      "bozzetto.composer.protocol": {
+        "type": "Project",
+        "dependencies": {
+          "BAREWire": "[1.0.0, )",
+          "FSharp.Core": "[10.1.401, )",
+          "Fidelity.PSG": "[1.0.0, )"
         }
       },
       "bozzetto.diagnostics": {
         "type": "Project",
         "dependencies": {
+          "BAREWire": "[1.0.0, )",
           "FSharp.Core": "[10.1.401, )",
-          "Fidelity.Data": "[1.0.0, )"
-        }
-      },
-      "calque.core": {
-        "type": "Project",
-        "dependencies": {
-          "Calque.Syntax": "[0.1.0, )",
-          "FSharp.Core": "[10.1.401, )"
-        }
-      },
-      "calque.incremental": {
-        "type": "Project",
-        "dependencies": {
-          "Calque.Core": "[0.1.0, )",
-          "FSharp.Core": "[10.1.401, )",
-          "Fidelity.FSharp.Incremental.Hosting": "[0.1.0-preview.6, )"
-        }
-      },
-      "calque.syntax": {
-        "type": "Project",
-        "dependencies": {
-          "FSharp.Core": "[10.1.401, )"
+          "Fidelity.Data": "[1.0.0, )",
+          "Fidelity.PSG": "[1.0.0, )"
         }
       },
       "fidelity.data": {
@@ -59,14 +58,11 @@
           "XParsec": "[0.3.0, )"
         }
       },
-      "Fidelity.FSharp.Incremental.Hosting": {
-        "type": "CentralTransitive",
-        "requested": "[0.1.0-preview.6, )",
-        "resolved": "0.1.0-preview.6",
-        "contentHash": "rEc6AAmjNh7ckoWM7Rw+EBPwDsAH2vjRbV4/dV0aFWZEJJkaHZP4zPR2iLaFIB11oasQBgxNGe6Hw1tL18Wpnw==",
+      "fidelity.psg": {
+        "type": "Project",
         "dependencies": {
-          "FSharp.Core": "10.1.401",
-          "Fidelity.FSharp.Incremental": "0.1.0-preview.6"
+          "BAREWire": "[1.0.0, )",
+          "FSharp.Core": "[10.1.401, )"
         }
       },
       "FSharp.Core": {

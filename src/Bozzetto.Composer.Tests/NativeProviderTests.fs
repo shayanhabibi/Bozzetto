@@ -437,7 +437,7 @@ let tests =
         finally (client :> IDisposable).Dispose()
     }
 
-    testCase "Calque preview reserves exact base apply before build and current native run" <| fun _ ->
+    testCase "Fantomas preview reserves exact base apply before build and current native run" <| fun _ ->
       let directory = evidenceRoot ()
       let fixture = fixture directory
       use client = new Client(directory, "format-preview")
@@ -455,7 +455,7 @@ let tests =
       expectAuthority client session 0L formattedResponse
       let preview = succeeded formattedResponse
       stringField "sourceSha256" preview |> Expect.equal "preview identifies exact supplied base" (FormatPolicy.sourceSha256 source)
-      stringField "formatterIdentity" preview |> fun identity -> identity.Contains "Calque.Incremental:" |> Expect.isTrue "preview identifies the captured formatter deployment files"
+      stringField "formatterIdentity" preview |> fun identity -> identity.Contains "Fantomas.Core:" |> Expect.isTrue "preview identifies the captured formatter deployment files"
       File.ReadAllText fixture.Source |> Expect.equal "preview performs no source write" source
       noCurrent client session
       let token = reserve client session "apply completed formatting preview"

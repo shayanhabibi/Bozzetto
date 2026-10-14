@@ -115,7 +115,24 @@ type private RecordingFormatter() =
     member _.DrainDiagnostics() = formatter.DrainDiagnostics()
 
 [<Tests>]
-let tests = testList "Composer Calque preview" [
+let tests = testList "Composer formatter preview" [
+  taskCase "Fantomas produces two-space LF previews and refuses malformed source" <| fun () -> task {
+    let formatter = FormatterSession()
+    try
+      let snapshot = buffer 1UL "module Sample\r\nlet value=1\r\n"
+      let! formatted = preview formatter snapshot
+      let accepted = success formatted
+      accepted.Formatted |> Expect.equal "Fantomas formats the immutable source with LF" "module Sample\n\nlet value = 1\n"
+      accepted.FormatterIdentity.Contains "Fantomas.Core:" |> Expect.isTrue "preview identifies Fantomas"
+      let! nested = preview formatter { snapshot with Revision = 2UL; Source = "module Sample\nlet transform x=\n    let y=x+1\n    y*2\n" }
+      (success nested).Formatted
+      |> Expect.equal "nested expressions use two spaces" "module Sample\n\nlet transform x =\n  let y = x + 1\n  y * 2\n"
+      let! malformed = preview formatter { snapshot with Revision = 3UL; Source = "module Sample\nlet value = (\n" }
+      malformed |> refusal "request_refused"
+    finally formatter.BeginClose()
+    let! closed = closeFormatter formatter
+    success closed |> ignore
+  }
   taskCase "immutable quoted buffer formats without changing accepted artifact authority" <| fun () -> task {
     let backend = new Backend()
     use owner = new ProviderSession<int64>("host", "session", "epoch", "/not-read/project.fidproj", backend)
@@ -128,7 +145,7 @@ let tests = testList "Composer Calque preview" [
     preview.Formatted.Contains "<@" |> Expect.isTrue "typed quotation is retained"
     preview.Formatted.Contains "% 7" |> Expect.isTrue "infix modulo stays native"
     preview.SourceSha256 |> Expect.equal "exact immutable base digest" (FormatPolicy.sourceSha256 snapshot.Source)
-    preview.FormatterIdentity.Contains "Calque.Core:" |> Expect.isTrue "owner-start formatter deployment files are identified"
+    preview.FormatterIdentity.Contains "Fantomas.Core:" |> Expect.isTrue "owner-start formatter deployment files are identified"
     response.Authority.Generation |> Expect.equal "preview does not reserve" built.Authority.Generation
     (owner.Status() |> fun response -> success response.Outcome).Current |> Expect.equal "accepted artifact remains available" (Some accepted)
     backend.Reservations |> Expect.equal "formatting makes no compiler reservation" 1
@@ -341,9 +358,9 @@ let tests = testList "Composer Calque preview" [
     let join operation = async {
       entered.TrySetResult() |> ignore
       do! release.Task |> Async.AwaitTask
-      return! Calque.Incremental.DocumentFormatter.awaitClose operation
+      return! Bozzetto.Providers.Formatting.DocumentFormatter.awaitClose operation
     }
-    let formatter = FormatterSession(Calque.Incremental.DocumentFormatter.start, join)
+    let formatter = FormatterSession(Bozzetto.Providers.Formatting.DocumentFormatter.start, join)
     let original = { buffer 0UL "module Capacity\nlet value=1\n" with Document = "buffer://retiring" }
     try
       let! first = preview formatter original
@@ -380,9 +397,9 @@ let tests = testList "Composer Calque preview" [
     let start handle =
       if failStart then
         failStart <- false
-        Error(Calque.Incremental.FormatterError.InvalidSettings "injected start failure")
-      else Calque.Incremental.DocumentFormatter.start handle
-    let formatter = FormatterSession(start, Calque.Incremental.DocumentFormatter.awaitClose)
+        Error(Bozzetto.Providers.Formatting.FormatterError.InvalidSettings "injected start failure")
+      else Bozzetto.Providers.Formatting.DocumentFormatter.start handle
+    let formatter = FormatterSession(start, Bozzetto.Providers.Formatting.DocumentFormatter.awaitClose)
     let original = buffer 0UL "module Retry\nlet value=1\n"
     try
       formatter.RequestPreview original |> refusal "request_refused"
@@ -407,9 +424,9 @@ let tests = testList "Composer Calque preview" [
     let join operation = async {
       entered.TrySetResult() |> ignore
       do! release.Task |> Async.AwaitTask
-      return! Calque.Incremental.DocumentFormatter.awaitClose operation
+      return! Bozzetto.Providers.Formatting.DocumentFormatter.awaitClose operation
     }
-    let formatter = FormatterSession(Calque.Incremental.DocumentFormatter.start, join)
+    let formatter = FormatterSession(Bozzetto.Providers.Formatting.DocumentFormatter.start, join)
     use owner = new ProviderSession<int64>("host", "session", "epoch", "/not-read/project.fidproj", new Backend(), formatter = formatter)
     try
       let original = buffer 0UL "module Owned\nlet value=1\n"
@@ -436,9 +453,9 @@ let tests = testList "Composer Calque preview" [
     let join operation = async {
       entered.TrySetResult() |> ignore
       do! release.Task |> Async.AwaitTask
-      return! Calque.Incremental.DocumentFormatter.awaitClose operation
+      return! Bozzetto.Providers.Formatting.DocumentFormatter.awaitClose operation
     }
-    let formatter = FormatterSession(Calque.Incremental.DocumentFormatter.start, join)
+    let formatter = FormatterSession(Bozzetto.Providers.Formatting.DocumentFormatter.start, join)
     use owner = new ProviderSession<int64>("host", "session", "epoch", "/deadline/project.fidproj", new Backend(),
       formatter = formatter, formatterCleanupTimestamp = (fun () -> Interlocked.Read(&timestamp)))
     let status () = owner.Status().Outcome |> success

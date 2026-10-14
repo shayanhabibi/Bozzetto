@@ -461,27 +461,6 @@
           "Bozzetto.Core": "[0.1.0, )"
         }
       },
-      "calque.core": {
-        "type": "Project",
-        "dependencies": {
-          "Calque.Syntax": "[0.1.0, )",
-          "FSharp.Core": "[10.1.401, )"
-        }
-      },
-      "calque.incremental": {
-        "type": "Project",
-        "dependencies": {
-          "Calque.Core": "[0.1.0, )",
-          "FSharp.Core": "[10.1.401, )",
-          "Fidelity.FSharp.Incremental.Hosting": "[0.1.0-preview.6, )"
-        }
-      },
-      "calque.syntax": {
-        "type": "Project",
-        "dependencies": {
-          "FSharp.Core": "[10.1.401, )"
-        }
-      },
       "fidelity.data": {
         "type": "Project",
         "dependencies": {

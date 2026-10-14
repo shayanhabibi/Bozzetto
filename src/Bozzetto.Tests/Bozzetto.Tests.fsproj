@@ -1,6 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <Import Project="../../tools/build/ComposerContract.props" />
-  <Import Project="../../tools/build/CalqueContract.props" />
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
@@ -17,7 +16,8 @@
         <Compile Include="TestInfrastructure.fs" />
         <Compile Include="ReleaseVersionTests.fs" />
         <Compile Include="../Bozzetto.Composer/ProviderContracts.fs" Link="Composer/ProviderContracts.fs" />
-  <Compile Include="../Bozzetto.Composer/FormatterSession.fs" Link="Composer/FormatterSession.fs" />
+        <Compile Include="../Bozzetto.Composer/FantomasDocument.fs" Link="Composer/FantomasDocument.fs" />
+        <Compile Include="../Bozzetto.Composer/FormatterSession.fs" Link="Composer/FormatterSession.fs" />
         <Compile Include="../Bozzetto.Composer/ProviderSession.fs" Link="Composer/ProviderSession.fs" />
         <Compile Include="../Bozzetto.Composer/Worker.fs" Link="Composer/Worker.fs" />
         <Compile Include="../Bozzetto.Composer.Tests/WorkerCancellationTests.fs" Link="Composer/WorkerCancellationTests.fs" />
@@ -560,6 +560,7 @@
         <Content Include="snapshots\**\*.verified.txt">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
+        <None Include="../../licenses/Calque-Apache-2.0.md" Link="licenses/Calque-Apache-2.0.md" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
     <ItemGroup>

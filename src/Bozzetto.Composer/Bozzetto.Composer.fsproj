@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="../../tools/build/CalqueContract.props" />
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -22,7 +21,7 @@
       <Output TaskParameter="Items" ItemName="_SelectedWorkerClosureHash" />
     </GetFileHash>
     <WriteLinesToFile File="$(IntermediateOutputPath)selected-worker-closure.txt"
-      Lines="ComposerDistribution=$(ComposerDistribution);CalqueDistribution=$(CalqueDistribution);@(_SelectedWorkerClosureHash->'%(FullPath)|%(FileHash)')"
+      Lines="ComposerDistribution=$(ComposerDistribution);@(_SelectedWorkerClosureHash->'%(FullPath)|%(FileHash)')"
       Overwrite="true" WriteOnlyWhenDifferent="true" />
     <PropertyGroup>
       <MSBuildAllProjects>$(MSBuildAllProjects);$(IntermediateOutputPath)selected-worker-closure.txt</MSBuildAllProjects>
@@ -36,11 +35,16 @@
     <ProjectReference Include="../Bozzetto.Diagnostics/Bozzetto.Diagnostics.fsproj" />
     <Reference Include="$(ComposerDistribution)/*.dll" />
     <Compile Include="ProviderContracts.fs" />
+    <Compile Include="FantomasDocument.fs" />
     <Compile Include="FormatterSession.fs" />
     <Compile Include="ProviderSession.fs" />
     <Compile Include="Worker.fs" />
     <Compile Include="DiagnosticCapture.fs" />
     <Compile Include="ComposerAdapter.fs" />
     <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Fantomas.Core" />
+    <None Include="../../licenses/Calque-Apache-2.0.md" Link="licenses/Calque-Apache-2.0.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

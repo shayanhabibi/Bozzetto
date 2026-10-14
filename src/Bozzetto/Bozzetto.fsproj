@@ -141,6 +141,7 @@
           <PackagePath>/</PackagePath>
           <Link>README.md</Link>
         </None>
+        <None Include="../../licenses/Calque-Apache-2.0.md" Pack="true" PackagePath="licenses/" />
     </ItemGroup>
 
     <ItemGroup>

@@ -6,8 +6,8 @@ open System.IO
 open System.Security.Cryptography
 open System.Text
 open Bozzetto.Composer.Protocol
-open Calque.Core
-open Calque.Incremental
+open Fantomas.Core
+open Bozzetto.Providers.Formatting
 
 type FormatterDiagnostic = {
   Document: DocumentIdentity
@@ -64,7 +64,7 @@ type FormatterSession internal (
   // files can be replaced independently of loaded assemblies; this identity
   // describes those captured files, never claims a late hash proves loaded IL.
   let identity =
-    [ typeof<DocumentIdentity>.Assembly; typeof<FormatConfig>.Assembly; typeof<Calque.Syntax.Text.pos>.Assembly
+    [ typeof<DocumentIdentity>.Assembly; typeof<FormatConfig>.Assembly; typeof<Fantomas.FCS.Text.Position>.Assembly
       typeof<Fidelity.FSharp.Incremental.EpochId>.Assembly; typeof<Fidelity.FSharp.Incremental.Hosting.MailboxError>.Assembly ]
     |> List.map (fun assembly -> assembly.GetName().Name + ":" + assembly.Location + ":" + (File.ReadAllBytes assembly.Location |> SHA256.HashData |> Convert.ToHexString))
     |> String.concat ";"
